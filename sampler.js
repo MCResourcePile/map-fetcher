@@ -1,8 +1,25 @@
+const dotenv = require("dotenv").config();
 const fetch = require("node-fetch");
 const xml = require("xml2js");
 
+const api = async () => {
+  const endpoint = "https://api.github.com/rate_limit";
+  const options = {
+    method: "get",
+    headers: {
+      "User-Agent": "NodeJS",
+      "Authorization": "Bearer " + process.env.API_TOKEN
+    }
+  };
+
+  var res = await fetch(endpoint, options);
+  var data = await res.json();
+
+  console.log(data)
+};
+
 const main = async () => {
-  const endpoint = "https://github.com/OvercastCommunity/CommunityMaps/raw/master/koth/standard/forge_ignea/map.xml";
+  const endpoint = "https://raw.githubusercontent.com/OvercastCommunity/PublicMaps/main/dtcm/standard/bedrock_fortress_battles/map.xml";
   const options = {
     method: "get",
     headers: {
@@ -19,3 +36,4 @@ const main = async () => {
 };
 
 main();
+api();
