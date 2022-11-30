@@ -90,9 +90,17 @@ const parseMapInfo = async (target, source) => {
 
     map["authors"] = [];
     for (var i in result.map.authors[0].author) {
-      var author = { uuid: result.map.authors[0].author[i].$.uuid };
-      if (result.map.authors[0].author[i].$.contribution)
-        author["contribution"] = result.map.authors[0].author[i].$.contribution;
+      var author = {};
+      if (result.map.authors[0].author[i].$) {
+        if (result.map.authors[0].author[i].$.uuid) {
+          author["uuid"] = result.map.authors[0].author[i].$.uuid;
+        };
+        if (result.map.authors[0].author[i].$.contribution) {
+          author["contribution"] = result.map.authors[0].author[i].$.contribution;
+        };
+      } else {
+        author["username"] = result.map.authors[0].author[i]._ ? result.map.authors[0].author[i]._ : result.map.authors[0].author[i];
+      };
 
       map["authors"].push(author);
     };
@@ -100,9 +108,17 @@ const parseMapInfo = async (target, source) => {
     if (result.map.contributors) {
       map["contributors"] = [];
       for (var i in result.map.contributors[0].contributor) {
-        var contributor = { uuid: result.map.contributors[0].contributor[i].$.uuid };
-        if (result.map.contributors[0].contributor[i].$.contribution)
-          contributor["contribution"] = result.map.contributors[0].contributor[i].$.contribution;
+        var contributor = {};
+        if (result.map.contributors[0].contributor[i].$) {
+          if (result.map.contributors[0].contributor[i].$.uuid) {
+            contributor["uuid"] = result.map.contributors[0].contributor[i].$.uuid;
+          };
+          if (result.map.contributors[0].contributor[i].$.contribution) {
+            author["contribution"] = result.map.contributors[0].contributor[i].$.contribution;
+          };
+        } else {
+          contributor["username"] = result.map.contributors[0].contributor[i]._ ? result.map.contributors[0].contributor[i]._ : result.map.contributors[0].contributor[i];
+        };
 
         map["contributors"].push(contributor);
       };
@@ -137,8 +153,9 @@ const parseMapInfo = async (target, source) => {
     // todo: differentiate between classic ctf, kotf, etc
     if (result.map.flags)        map["tags"].push("flag");
 
-    (result.map.king              && result.map.score) ? map["tags"].push("hill", "king") : map["tags"].push("hill", "control");
-    (result.map["control-points"] && result.map.score) ? map["tags"].push("hill", "king") : map["tags"].push("hill", "control");
+    if (result.map.king || result.map["control-points"]) {
+      (result.map.score) ? map["tags"].push("hill", "king") : map["tags"].push("hill", "control");
+    };
 
     if (result.map.blitz)        map["tags"].push("blitz");
     if (result.map.rage)         map["tags"].push("rage");
@@ -153,10 +170,6 @@ const parseMapInfo = async (target, source) => {
 
     // remove duplicate tag entries
     map["tags"] = [...new Set(map["tags"])];
-
-    if (source.license === "ambiguous") {
-      const licenseEndpoint = `https://raw.githubusercontent.com/${target.repository.full_name}/${ref}/${path.replace("map.xml", "LICENSE.txt")}`;
-    }
 
     map["source"] = {
       maintainer: source.maintainer,
