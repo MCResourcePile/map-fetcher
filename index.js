@@ -166,6 +166,47 @@ const parseMapInfo = async (target, source) => {
   return map;
 }
 
+const determineMapLicense = async (target, source) => {
+  const path = target.path;
+  const ref = target.url.split("?ref=")[1];
+  const endpoint = `https://raw.githubusercontent.com/${target.repository.full_name}/${ref}/${path.replace("/map.xml", "/LICENSE.txt")}`;
+  const options = {
+    method: "get",
+    headers: {
+      "User-Agent": "NodeJS"
+    }
+  };
+  const res = await fetch(endpoint, options);
+  const data = await res.text();
+
+  if (res.status === 404) {
+    return "not-found";
+  };
+
+  const licenseTypes = [
+    {
+      license: "cc-by-sa",
+      keywords: ["Creative Commons Attribution-ShareAlike", "/by-sa/"]
+    },
+    {
+      license: "cc-by-nc-sa",
+      keywords: ["Creative Commons Attribution-NonCommercial-ShareAlike", "/by-nc-sa/"]
+    }
+  ];
+
+  var license = "unresolved";
+  for (var i = 0; i < licenseTypes.length; i++) {
+    for (var j = 0; j < licenseTypes[i].keywords.length; j++) {
+      if (!data.includes(licenseTypes[i].keywords[j])) continue;
+
+      license = licenseTypes[i].license;
+      break;
+    }
+  }
+
+  return license;
+}
+
 const toSlug = (string) => {
   return string.toLowerCase().replace(/[^\w ]+/g, '').replace(/ +/g, '_');
 }
@@ -205,6 +246,10 @@ const main = async () => {
       for (var j = 0; j < 2; j++) {
         var mapObj = await parseMapInfo(foundMaps[j], source);
         if (!mapObj) continue;
+
+        if (mapObj.source.license === "ambiguous") {
+          mapObj.source.license = await determineMapLicense(foundMaps[j], source);
+        };
         mapsOutput.push(mapObj);
       };
     };
