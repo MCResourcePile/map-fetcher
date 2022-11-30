@@ -33,18 +33,23 @@ const SOURCES = [
   }
 ];
 
-
 const fetchMapList = async (source, page = 1) => {
   const endpoint = `https://api.github.com/search/code?per_page=${PER_PAGE_COUNT}&page=${page}&q=filename:map.xml+extension:xml+repo:${source.maintainer}/${source.repository}`;
   const options = {
     method: "get",
     headers: {
       "User-Agent": "NodeJS",
-      "Authorization": "Token " + process.env.API_TOKEN
+      "Authorization": "Bearer " + process.env.API_TOKEN
     }
   };
   const res = await fetch(endpoint, options);
   const data = await res.json();
+
+  if (res.status === 403) {
+    console.log("Hit API limit, waiting...");
+    console.log(data);
+    await sleep(20000);
+  };
 
   if (!data.items) return false;
 
@@ -211,6 +216,12 @@ const toSlug = (string) => {
   return string.toLowerCase().replace(/[^\w ]+/g, '').replace(/ +/g, '_');
 }
 
+const sleep = (ms) => {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+};
+
 const main = async () => {
   var mapsOutput = [];
 
@@ -225,13 +236,23 @@ const main = async () => {
     var foundMaps = initResult.maps || [];
     var totalMaps = initResult.total_results || 0;
     var countedMaps = initResult.results || 0;
-    console.log(countedMaps);
+    var maxPages = Math.ceil(totalMaps / PER_PAGE_COUNT);
+    console.log(totalMaps)
+    console.log(maxPages)
     page += 1;
 
-    while (countedMaps < totalMaps) {
+    while (page <= maxPages) {
       var result = await fetchMapList(source, page);
 
-      if (!result) continue;
+      if (!result) {
+        console.log("Returned empty result, retrying...");
+        continue;
+      }
+
+      if (result.results !== PER_PAGE_COUNT && page !== maxPages) {
+        console.log("Returned incomplete result, retrying...");
+        continue;
+      }
 
       countedMaps += result.results;
       foundMaps = [...foundMaps, ...result.maps];
@@ -242,14 +263,16 @@ const main = async () => {
     console.log(`Found ${foundMaps.length} maps`);
 
     if (foundMaps.length) {
-      // for (var j = 0; j < foundMaps.length; j++) {
-      for (var j = 0; j < 2; j++) {
+      for (var j = 0; j < foundMaps.length; j++) {
+      // for (var j = 0; j < 2; j++) {
         var mapObj = await parseMapInfo(foundMaps[j], source);
+
         if (!mapObj) continue;
 
         if (mapObj.source.license === "ambiguous") {
           mapObj.source.license = await determineMapLicense(foundMaps[j], source);
         };
+
         mapsOutput.push(mapObj);
       };
     };
