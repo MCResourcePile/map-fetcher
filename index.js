@@ -176,6 +176,7 @@ const parseMapInfo = async (target, source) => {
       repository: source.repository,
       path: target.path.split("/map.xml")[0],
       license: result.map.license ? result.map.license[0] : source.license,
+      license_scope: "repository",
       github_url: target.html_url.split("/map.xml")[0],
       image_url: `https://raw.githubusercontent.com/${target.repository.full_name}/${ref}/${path.split("/map.xml")[0]}/map.png`
     };
@@ -284,6 +285,7 @@ const main = async () => {
 
         if (mapObj.source.license === "ambiguous") {
           mapObj.source.license = await determineMapLicense(foundMaps[j], source);
+          mapObj.source.license_scope = "map";
         };
 
         mapsOutput.push(mapObj);
