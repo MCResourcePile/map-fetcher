@@ -144,7 +144,7 @@ const parseMapInfo = async (target, source) => {
     };
 
     map["tags"] = [];
-    if (result.map.teams)        map["tags"].push(`${result.map.teams[0].team.length}team`);
+    if (result.map.teams)        map["tags"].push(`${result.map.teams[0].team.length}teams`);
     if (result.map.players)      map["tags"].push("ffa");
     if (result.map.cores)        map["tags"].push("core");
     if (result.map.destroyables) map["tags"].push("monument");
