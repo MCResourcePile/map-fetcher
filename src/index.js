@@ -4,34 +4,7 @@ const xml = require("xml2js");
 const fs = require("fs");
 
 const PER_PAGE_COUNT = 100; // max 100
-// use "ambiguous" as the license if the repo isn't uniform
-const SOURCES = [
-  {
-    "maintainer": "OvercastCommunity",
-    "repository": "CommunityMaps",
-    "license": "cc-by-sa"
-  },
-  {
-    "maintainer": "OvercastCommunity",
-    "repository": "PublicMaps",
-    "license": "ambiguous"
-  },
-  {
-    "maintainer": "OvercastCommunity",
-    "repository": "public-competitive",
-    "license": "ambiguous"
-  },
-  {
-    "maintainer": "Warzone",
-    "repository": "PublicMaps",
-    "license": "cc-by-sa"
-  },
-  {
-    "maintainer": "Xerocoles",
-    "repository": "stratus-maps",
-    "license": "ambiguous"
-  }
-];
+const SOURCES = require("./sources").SOURCES;
 
 const fetchMapList = async (source, page = 1) => {
   const endpoint = `https://api.github.com/search/code?per_page=${PER_PAGE_COUNT}&page=${page}&q=filename:map.xml+extension:xml+repo:${source.maintainer}/${source.repository}`;
@@ -204,12 +177,32 @@ const determineMapLicense = async (target, source) => {
 
   const licenseTypes = [
     {
+      license: "cc-by",
+      keywords: ["Creative Commons Attribution", "/by/"]
+    },
+    {
       license: "cc-by-sa",
       keywords: ["Creative Commons Attribution-ShareAlike", "/by-sa/"]
     },
     {
+      license: "cc-by-nd",
+      keywords: ["Creative Commons Attribution-NoDerivatives", "/by-nd/"]
+    },
+    {
+      license: "cc-by-nc",
+      keywords: ["Creative Commons Attribution-NonCommercial", "/by-nc/"]
+    },
+    {
       license: "cc-by-nc-sa",
       keywords: ["Creative Commons Attribution-NonCommercial-ShareAlike", "/by-nc-sa/"]
+    },
+    {
+      license: "cc-by-nc-nd",
+      keywords: ["Creative Commons Attribution-NonCommercial-NoDerivs", "/by-nc-nd/"]
+    },
+    {
+      license: "copr-xerocoles",
+      keywords: ["Xerocoles"]
     }
   ];
 
@@ -251,8 +244,8 @@ const main = async () => {
     var totalMaps = initResult.total_results || 0;
     var countedMaps = initResult.results || 0;
     var maxPages = Math.ceil(totalMaps / PER_PAGE_COUNT);
-    console.log(totalMaps)
-    console.log(maxPages)
+    console.log(`Total maps: ${totalMaps}`)
+    console.log(`Pages: ${maxPages}`)
     page += 1;
 
     while (page <= maxPages) {
@@ -270,7 +263,7 @@ const main = async () => {
 
       countedMaps += result.results;
       foundMaps = [...foundMaps, ...result.maps];
-      console.log(countedMaps);
+      console.log(`Counted maps: ${countedMaps}`);
       page += 1;
     };
 
@@ -278,7 +271,6 @@ const main = async () => {
 
     if (foundMaps.length) {
       for (var j = 0; j < foundMaps.length; j++) {
-      // for (var j = 0; j < 2; j++) {
         var mapObj = await parseMapInfo(foundMaps[j], source);
 
         if (!mapObj) continue;
