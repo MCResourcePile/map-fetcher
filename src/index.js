@@ -214,6 +214,7 @@ const determineMapLicense = async (target, source) => {
       license = licenseTypes[i].license;
       break;
     }
+    if (license !== "unresolved") break;
   }
 
   return license;
