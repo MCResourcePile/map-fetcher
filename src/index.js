@@ -150,7 +150,7 @@ const parseMapInfo = async (target, source) => {
       path: target.path.split("/map.xml")[0],
       license: result.map.license ? result.map.license[0] : source.license,
       license_scope: "repository",
-      github_url: `https://github.com/${target.repository.full_name}/${source.branch}/${path.split("/map.xml")[0]}`,
+      github_url: `https://github.com/${target.repository.full_name}/tree/${source.branch}/${path.split("/map.xml")[0]}`,
       image_url: `https://raw.githubusercontent.com/${target.repository.full_name}/${source.branch}/${path.split("/map.xml")[0]}/map.png`
     };
   });
