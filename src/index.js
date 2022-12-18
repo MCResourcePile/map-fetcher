@@ -178,27 +178,27 @@ const determineMapLicense = async (target, source) => {
   const licenseTypes = [
     {
       license: "cc-by",
-      keywords: ["Creative Commons Attribution", "/by/"]
+      keywords: ["Creative Commons Attribution ", "/by/"]
     },
     {
       license: "cc-by-sa",
-      keywords: ["Creative Commons Attribution-ShareAlike", "/by-sa/"]
+      keywords: ["Creative Commons Attribution-ShareAlike ", "/by-sa/"]
     },
     {
       license: "cc-by-nd",
-      keywords: ["Creative Commons Attribution-NoDerivatives", "/by-nd/"]
+      keywords: ["Creative Commons Attribution-NoDerivatives ", "/by-nd/"]
     },
     {
       license: "cc-by-nc",
-      keywords: ["Creative Commons Attribution-NonCommercial", "/by-nc/"]
+      keywords: ["Creative Commons Attribution-NonCommercial ", "/by-nc/"]
     },
     {
       license: "cc-by-nc-sa",
-      keywords: ["Creative Commons Attribution-NonCommercial-ShareAlike", "/by-nc-sa/"]
+      keywords: ["Creative Commons Attribution-NonCommercial-ShareAlike ", "/by-nc-sa/"]
     },
     {
       license: "cc-by-nc-nd",
-      keywords: ["Creative Commons Attribution-NonCommercial-NoDerivs", "/by-nc-nd/"]
+      keywords: ["Creative Commons Attribution-NonCommercial-NoDerivs ", "/by-nc-nd/"]
     },
     {
       license: "copr-xerocoles",
