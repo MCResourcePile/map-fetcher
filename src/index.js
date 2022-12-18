@@ -286,6 +286,7 @@ const main = async () => {
     };
   };
 
+  mapsOutput = [...new Set(mapsOutput)];
   fs.writeFile("output.json", JSON.stringify(mapsOutput, null, 4), (err) => {
     if (err) return console.log(err);
   });
