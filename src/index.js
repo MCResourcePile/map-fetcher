@@ -36,7 +36,7 @@ const fetchMapList = async (source, page = 1) => {
 const parseMapInfo = async (target, source) => {
   const path = target.path;
   const ref = target.url.split("?ref=")[1];
-  const endpoint = `https://raw.githubusercontent.com/${target.repository.full_name}/${ref}/${path}`;
+  const endpoint = `https://raw.githubusercontent.com/${target.repository.full_name}/${source.branch}/${path}`;
   const options = {
     method: "get",
     headers: {
@@ -150,8 +150,8 @@ const parseMapInfo = async (target, source) => {
       path: target.path.split("/map.xml")[0],
       license: result.map.license ? result.map.license[0] : source.license,
       license_scope: "repository",
-      github_url: target.html_url.split("/map.xml")[0],
-      image_url: `https://raw.githubusercontent.com/${target.repository.full_name}/${ref}/${path.split("/map.xml")[0]}/map.png`
+      github_url: `https://github.com/${target.repository.full_name}/${source.branch}/${path.split("/map.xml")[0]}`,
+      image_url: `https://raw.githubusercontent.com/${target.repository.full_name}/${source.branch}/${path.split("/map.xml")[0]}/map.png`
     };
   });
 
@@ -161,7 +161,7 @@ const parseMapInfo = async (target, source) => {
 const determineMapLicense = async (target, source) => {
   const path = target.path;
   const ref = target.url.split("?ref=")[1];
-  const endpoint = `https://raw.githubusercontent.com/${target.repository.full_name}/${ref}/${path.replace("/map.xml", "/LICENSE.txt")}`;
+  const endpoint = `https://raw.githubusercontent.com/${target.repository.full_name}/${source.branch}/${path.replace("/map.xml", "/LICENSE.txt")}`;
   const options = {
     method: "get",
     headers: {

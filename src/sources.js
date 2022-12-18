@@ -3,27 +3,32 @@ const SOURCES = [
   {
     "maintainer": "OvercastCommunity",
     "repository": "CommunityMaps",
-    "license": "cc-by-sa"
+    "license": "cc-by-sa",
+    "branch": "master"
   },
   {
     "maintainer": "OvercastCommunity",
     "repository": "PublicMaps",
-    "license": "ambiguous"
+    "license": "ambiguous",
+    "branch": "main"
   },
   {
     "maintainer": "OvercastCommunity",
     "repository": "public-competitive",
-    "license": "ambiguous"
+    "license": "ambiguous",
+    "branch": "master"
   },
   {
     "maintainer": "Warzone",
     "repository": "PublicMaps",
-    "license": "cc-by-sa"
+    "license": "cc-by-sa",
+    "branch": "main"
   },
   {
     "maintainer": "Xerocoles",
     "repository": "stratus-maps",
-    "license": "ambiguous"
+    "license": "ambiguous",
+    "branch": "master"
   }
 ];
 
