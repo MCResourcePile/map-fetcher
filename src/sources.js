@@ -4,13 +4,15 @@ const SOURCES = [
     "maintainer": "OvercastCommunity",
     "repository": "CommunityMaps",
     "license": "cc-by-sa",
-    "branch": "master"
+    "branch": "master",
+    "includes_root_url": "https://github.com/OvercastCommunity/PublicMaps/tree/main/includes"
   },
   {
     "maintainer": "OvercastCommunity",
     "repository": "PublicMaps",
     "license": "ambiguous",
-    "branch": "main"
+    "branch": "main",
+    "includes_root_url": "https://github.com/OvercastCommunity/PublicMaps/tree/main/includes"
   },
   {
     "maintainer": "OvercastCommunity",

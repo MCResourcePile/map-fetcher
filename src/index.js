@@ -153,6 +153,17 @@ const parseMapInfo = async (target, source) => {
       github_url: `https://github.com/${target.repository.full_name}/tree/${source.branch}/${path.split("/map.xml")[0]}`,
       image_url: `https://raw.githubusercontent.com/${target.repository.full_name}/${source.branch}/${path.split("/map.xml")[0]}/map.png`
     };
+
+    if (result.map.include) {
+      var include = {
+        root: source.includes_root_url || "https://github.com/MCResourcePile/pgm-includes",
+        files: []
+      };
+      for (var i = 0; i < result.map.include.length; i++) {
+        if (result.map.include[i].$.id) include["files"].push(`${result.map.include[i].$.id}.xml`);
+      };
+      map["source"].push(include);
+    };
   });
 
   return map;
