@@ -18,7 +18,8 @@ const SOURCES = [
     "maintainer": "OvercastCommunity",
     "repository": "public-competitive",
     "license": "ambiguous",
-    "branch": "master"
+    "branch": "master",
+    "global_tags": ["tournament"]
   },
   {
     "maintainer": "Warzone",

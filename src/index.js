@@ -141,6 +141,10 @@ const parseMapInfo = async (target, source) => {
     if (path.includes("halloween")) map["tags"].push("halloween");
     if (map["edition"] !== "standard") map["tags"].push(map["edition"]);
 
+    if (source.global_tags) {
+      map["tags"] = [].concat(map["tags"], source.global_tags);
+    };
+
     // remove duplicate tag entries
     map["tags"] = [...new Set(map["tags"])];
 
