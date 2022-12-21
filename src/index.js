@@ -136,10 +136,15 @@ const parseMapInfo = async (target, source) => {
     if (result.map.score && result.map.score[0].kills) map["tags"].push("deathmatch");
     if (result.map.score && result.map.score[0].box)   map["tags"].push("scorebox");
 
-    // include any special tags
-    if (path.includes("christmas")) map["tags"].push("christmas");
-    if (path.includes("halloween")) map["tags"].push("halloween");
     if (map["edition"] !== "standard") map["tags"].push(map["edition"]);
+    if (path.toLowerCase().includes("competitive")) map["tags"].push("tournament");
+
+    // include any special tags
+    if (path.toLowerCase().includes("christmas")) map["tags"].push("christmas");
+    if (path.toLowerCase().includes("halloween")) map["tags"].push("halloween");
+    // warzone seasonal folders
+    if (path.toLowerCase().includes("holiday")) map["tags"].push("christmas");
+    if (path.toLowerCase().includes("spooky")) map["tags"].push("halloween");
 
     if (source.global_tags) {
       map["tags"] = [].concat(map["tags"], source.global_tags);
