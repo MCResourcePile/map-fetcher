@@ -2,58 +2,42 @@ const dotenv = require("dotenv").config();
 const fetch = require("node-fetch");
 const xml = require("xml2js");
 const fs = require("fs");
+const path = require("path");
+const git = require("simple-git").simpleGit();
 
-const PER_PAGE_COUNT = 100; // max 100
 const SOURCES = require("./sources").SOURCES;
 
-const fetchMapList = async (source, page = 1) => {
-  const endpoint = `https://api.github.com/search/code?per_page=${PER_PAGE_COUNT}&page=${page}&q=filename:map.xml+extension:xml+repo:${source.maintainer}/${source.repository}`;
-  const options = {
-    method: "get",
-    headers: {
-      "User-Agent": "NodeJS",
-      "Authorization": "Bearer " + process.env.API_TOKEN
-    }
-  };
-  const res = await fetch(endpoint, options);
-  const data = await res.json();
+const parseRepo = (root, source) => {
+  const IGNORE_DIRS = [".git", ".github", "region"];
+  var maps = [];
 
-  if (res.status === 403) {
-    console.log("Hit API limit, waiting...");
-    console.log(data);
-    await sleep(20000);
-  };
+  const files = fs.readdirSync(root);
+  files.forEach((file) => {
+    const filePath = path.join(root, file);
+    const stat = fs.lstatSync(filePath);
 
-  if (!data.items) return false;
+    if (stat.isDirectory() && !IGNORE_DIRS.includes(file)) {
+      var nestedMaps = parseRepo(filePath, source);
+      if (nestedMaps) maps = [].concat(maps, nestedMaps);
+    } else if (file === "map.xml") {
+      var map = parseMapInfo(filePath, source);
+      if (map) maps.push(map);
+    };
+  });
 
-  return {
-    maps: data.items,
-    results: data.items.length,
-    total_results: data.total_count
-  };
+  return maps;
 };
 
-const parseMapInfo = async (target, source) => {
-  const path = target.path;
-  const ref = target.url.split("?ref=")[1];
-  const endpoint = `https://raw.githubusercontent.com/${target.repository.full_name}/${source.branch}/${path}`;
-  const options = {
-    method: "get",
-    headers: {
-      "User-Agent": "NodeJS"
-    }
-  };
-  const res = await fetch(endpoint, options);
-  const data = await res.text();
-
+const parseMapInfo = (target, source) => {
   var map = {};
+  const data = fs.readFileSync(target, 'utf8');
 
   xml.parseString(data, (err, result) => {
-    console.log(`Parsing map data from ${path}`);
+    console.log(`Parsing map data from ${target}`);
 
     map["name"] = result.map.name[0];
     map["slug"] = toSlug(result.map.name[0]);
-    map["id"] = toSlug([target.repository.owner.login, target.repository.name, result.map.name[0]].join("_"));
+    map["id"] = toSlug([source.maintainer, source.repository, result.map.name[0]].join("_"));
     map["proto"] = result.map.$.proto;
     map["version"] = result.map.version[0];
     if (result.map.objective) map["objective"] = result.map.objective[0];
@@ -137,14 +121,14 @@ const parseMapInfo = async (target, source) => {
     if (result.map.score && result.map.score[0].box)   map["tags"].push("scorebox");
 
     if (map["edition"] !== "standard") map["tags"].push(map["edition"]);
-    if (path.toLowerCase().includes("competitive")) map["tags"].push("tournament");
+    if (target.toLowerCase().includes("competitive")) map["tags"].push("tournament");
 
     // include any special tags
-    if (path.toLowerCase().includes("christmas")) map["tags"].push("christmas");
-    if (path.toLowerCase().includes("halloween")) map["tags"].push("halloween");
+    if (target.toLowerCase().includes("christmas")) map["tags"].push("christmas");
+    if (target.toLowerCase().includes("halloween")) map["tags"].push("halloween");
     // warzone seasonal folders
-    if (path.toLowerCase().includes("holiday")) map["tags"].push("christmas");
-    if (path.toLowerCase().includes("spooky")) map["tags"].push("halloween");
+    if (target.toLowerCase().includes("holiday")) map["tags"].push("christmas");
+    if (target.toLowerCase().includes("spooky")) map["tags"].push("halloween");
 
     if (source.global_tags) {
       map["tags"] = [].concat(map["tags"], source.global_tags);
@@ -153,47 +137,47 @@ const parseMapInfo = async (target, source) => {
     // remove duplicate tag entries
     map["tags"] = [...new Set(map["tags"])];
 
+    var workingTarget = target.replaceAll("\\", "/");
+    var repoSegment = `/${source.maintainer}/${source.repository}/`;
+    var mapDir = workingTarget.split(repoSegment)[1].replace("/map.xml", "");
+    var mapImageUrl = (source, mapDir) => {
+      if (source.url.includes("github.com")) {
+        return `https://raw.githubusercontent.com/${source.maintainer}/${source.repository}/${source.branch}/${mapDir}/map.png`
+      };
+      if (source.url.includes("gitlab.com")) {
+        return `https://gitlab.com/${source.maintainer}/${source.repository}/-/raw/${source.branch}/${mapDir}/map.png`
+      };
+    };
+
     map["source"] = {
       maintainer: source.maintainer,
       repository: source.repository,
-      path: target.path.split("/map.xml")[0],
-      license: result.map.license ? result.map.license[0] : source.license,
-      license_scope: "repository",
-      github_url: `https://github.com/${target.repository.full_name}/tree/${source.branch}/${path.split("/map.xml")[0]}`,
-      image_url: `https://raw.githubusercontent.com/${target.repository.full_name}/${source.branch}/${path.split("/map.xml")[0]}/map.png`
+      path: mapDir,
+      license: source.license != "ambiguous" ? source.license : determineMapLicense(target, source),
+      license_scope: source.license != "ambiguous" ? "repository" : "map",
+      github_url: source.url + "tree/" + source.branch + "/" + mapDir,
+      image_url: mapImageUrl(source, mapDir)
     };
 
     if (result.map.include) {
       var include = {
-        root: source.includes_root_url || "https://github.com/MCResourcePile/pgm-includes",
+        root: source.includes_url || "https://github.com/MCResourcePile/pgm-includes",
         files: []
       };
       for (var i = 0; i < result.map.include.length; i++) {
-        if (result.map.include[i].$.id) include["files"].push(`${result.map.include[i].$.id}.xml`);
+        if (result.map.include[i].$.id) include["files"].push(result.map.include[i].$.id);
       };
-      map["source"].push(include);
+      map["source"]["includes"] = include;
     };
   });
 
   return map;
 }
 
-const determineMapLicense = async (target, source) => {
-  const path = target.path;
-  const ref = target.url.split("?ref=")[1];
-  const endpoint = `https://raw.githubusercontent.com/${target.repository.full_name}/${source.branch}/${path.replace("/map.xml", "/LICENSE.txt")}`;
-  const options = {
-    method: "get",
-    headers: {
-      "User-Agent": "NodeJS"
-    }
-  };
-  const res = await fetch(endpoint, options);
-  const data = await res.text();
-
-  if (res.status === 404) {
-    return "not-found";
-  };
+const determineMapLicense = (target, source) => {
+  const licenseTarget = target.replace("map.xml", "LICENSE.txt");
+  if (!fs.existsSync(licenseTarget)) return "not-found";
+  const data = fs.readFileSync(licenseTarget, 'utf8');
 
   const licenseTypes = [
     {
@@ -233,81 +217,55 @@ const determineMapLicense = async (target, source) => {
 
       license = licenseTypes[i].license;
       break;
-    }
+    };
     if (license !== "unresolved") break;
-  }
+  };
 
   return license;
-}
+};
 
 const toSlug = (string) => {
   return string.toLowerCase().replace(/[^\w ]+/g, '').replace(/ +/g, '_');
 }
 
-const sleep = (ms) => {
-  return new Promise((resolve) => {
-    setTimeout(resolve, ms);
-  });
-};
-
 const main = async () => {
+  const args = require('yargs').argv;
+
+  const tmpDir = path.join(__dirname, "..", "tmp");
+  if (fs.existsSync(tmpDir)) fs.rmSync(tmpDir, { recursive: true });
+  fs.mkdirSync(tmpDir);
+
   var mapsOutput = [];
 
   for (var i = 0; i < SOURCES.length; i++) {
     const source = SOURCES[i];
+    const repoDir = path.join(tmpDir, source.maintainer, source.repository);
 
     console.log(`Fetching maps from ${source.maintainer}/${source.repository}`);
+    await git.clone(source.url, repoDir);
+    var foundMaps = parseRepo(repoDir, source);
+    if (foundMaps) mapsOutput = [].concat(mapsOutput, foundMaps);
 
-    var page = 1;
-    var initResult = await fetchMapList(source, page);
-
-    var foundMaps = initResult.maps || [];
-    var totalMaps = initResult.total_results || 0;
-    var countedMaps = initResult.results || 0;
-    var maxPages = Math.ceil(totalMaps / PER_PAGE_COUNT);
-    console.log(`Total maps: ${totalMaps}`)
-    console.log(`Pages: ${maxPages}`)
-    page += 1;
-
-    while (page <= maxPages) {
-      var result = await fetchMapList(source, page);
-
-      if (!result) {
-        console.log("Returned empty result, retrying...");
-        continue;
-      }
-
-      if (result.results !== PER_PAGE_COUNT && page !== maxPages) {
-        console.log("Returned incomplete result, retrying...");
-        continue;
-      }
-
-      countedMaps += result.results;
-      foundMaps = [...foundMaps, ...result.maps];
-      console.log(`Counted maps: ${countedMaps}`);
-      page += 1;
-    };
-
-    console.log(`Found ${foundMaps.length} maps`);
-
-    if (foundMaps.length) {
-      for (var j = 0; j < foundMaps.length; j++) {
-        var mapObj = await parseMapInfo(foundMaps[j], source);
-
-        if (!mapObj) continue;
-
-        if (mapObj.source.license === "ambiguous") {
-          mapObj.source.license = await determineMapLicense(foundMaps[j], source);
-          mapObj.source.license_scope = "map";
-        };
-
-        mapsOutput.push(mapObj);
-      };
-    };
+    fs.rmSync(repoDir, { recursive: true })
   };
 
-  mapsOutput = [...new Set(mapsOutput)];
-  fs.writeFile("output.json", JSON.stringify(mapsOutput, null, 4), (err) => {
+  fs.rmSync(tmpDir, { recursive: true })
+
+  const outputFile = args.output ? args.output : path.join(__dirname, "..", "pgm.json");
+  if (fs.existsSync(outputFile)) fs.rmSync(outputFile);
+
+  const templateUrl = "https://raw.githubusercontent.com/MCResourcePile/mcresourcepile.github.io/source/src/data/maps/pgm.json"
+  const res = await fetch(templateUrl, {
+    method: "get",
+    headers: {
+      "User-Agent": "NodeJS"
+    }
+  });
+  const data = await res.text();
+  var jsonData = JSON.parse(data);
+  jsonData.data.maps = [...new Set(mapsOutput)];
+
+  fs.writeFile(outputFile, JSON.stringify(jsonData, null, 4), (err) => {
     if (err) return console.log(err);
   });
 };

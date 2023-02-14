@@ -3,36 +3,49 @@ const SOURCES = [
   {
     "maintainer": "OvercastCommunity",
     "repository": "CommunityMaps",
-    "license": "cc-by-sa",
+    "url": "https://github.com/OvercastCommunity/CommunityMaps",
     "branch": "master",
-    "includes_root_url": "https://github.com/OvercastCommunity/PublicMaps/tree/main/includes"
+    "license": "cc-by-sa",
+    "includes_url": "https://github.com/OvercastCommunity/PublicMaps/tree/main/includes"
   },
   {
     "maintainer": "OvercastCommunity",
     "repository": "PublicMaps",
-    "license": "ambiguous",
+    "url": "https://github.com/OvercastCommunity/PublicMaps",
     "branch": "main",
-    "includes_root_url": "https://github.com/OvercastCommunity/PublicMaps/tree/main/includes"
+    "license": "ambiguous",
+    "includes_url": "https://github.com/OvercastCommunity/PublicMaps/tree/main/includes"
   },
   {
     "maintainer": "OvercastCommunity",
     "repository": "public-competitive",
-    "license": "ambiguous",
+    "url": "https://github.com/OvercastCommunity/public-competitive",
     "branch": "master",
+    "license": "ambiguous",
     "global_tags": ["tournament"]
   },
   {
     "maintainer": "Warzone",
     "repository": "PublicMaps",
-    "license": "cc-by-sa",
-    "branch": "main"
+    "url": "https://github.com/Warzone/PublicMaps",
+    "branch": "main",
+    "license": "cc-by-sa"
   },
   {
     "maintainer": "Xerocoles",
     "repository": "stratus-maps",
-    "license": "ambiguous",
-    "branch": "master"
+    "url": "https://github.com/Xerocoles/stratus-maps/",
+    "branch": "master",
+    "license": "ambiguous"
   }
+
+  // {
+  //   "maintainer": "mitchts",
+  //   "repository": "sample-maps",
+  //   "license": "ambiguous",
+  //   "url": "https://github.com/mitchts/sample-maps",
+  //   "branch": "main"
+  // }
 ];
 
 exports.SOURCES = SOURCES;
