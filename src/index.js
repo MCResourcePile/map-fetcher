@@ -155,7 +155,7 @@ const parseMapInfo = (target, source) => {
       path: mapDir,
       license: source.license != "ambiguous" ? source.license : determineMapLicense(target, source),
       license_scope: source.license != "ambiguous" ? "repository" : "map",
-      github_url: source.url + "tree/" + source.branch + "/" + mapDir,
+      github_url: source.url + "/tree/" + source.branch + "/" + mapDir,
       image_url: mapImageUrl(source, mapDir)
     };
 

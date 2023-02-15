@@ -34,7 +34,7 @@ const SOURCES = [
   {
     "maintainer": "Xerocoles",
     "repository": "stratus-maps",
-    "url": "https://github.com/Xerocoles/stratus-maps/",
+    "url": "https://github.com/Xerocoles/stratus-maps",
     "branch": "master",
     "license": "ambiguous"
   }
