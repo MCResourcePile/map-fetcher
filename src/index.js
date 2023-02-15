@@ -71,7 +71,7 @@ const parseMapInfo = (target, source) => {
             contributor["uuid"] = result.map.contributors[0].contributor[i].$.uuid;
           };
           if (result.map.contributors[0].contributor[i].$.contribution) {
-            author["contribution"] = result.map.contributors[0].contributor[i].$.contribution;
+            contributor["contribution"] = result.map.contributors[0].contributor[i].$.contribution;
           };
         } else {
           contributor["username"] = result.map.contributors[0].contributor[i]._ ? result.map.contributors[0].contributor[i]._ : result.map.contributors[0].contributor[i];
