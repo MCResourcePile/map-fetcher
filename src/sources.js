@@ -37,6 +37,13 @@ const SOURCES = [
     "url": "https://github.com/Xerocoles/stratus-maps",
     "branch": "master",
     "license": "ambiguous"
+  },
+  {
+    "maintainer": "MCResourcePile",
+    "repository": "pgm-maps",
+    "url": "https://github.com/MCResourcePile/pgm-maps",
+    "branch": "master",
+    "license": "ambiguous"
   }
 
   // {
