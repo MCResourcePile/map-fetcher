@@ -4,6 +4,7 @@ const xml = require("xml2js");
 const fs = require("fs");
 const path = require("path");
 const git = require("simple-git").simpleGit();
+const nbt = require("nbt");
 
 const SOURCES = require("./sources").SOURCES;
 
@@ -21,6 +22,11 @@ const parseRepo = (root, source) => {
       if (nestedMaps) maps = [].concat(maps, nestedMaps);
     } else if (file === "map.xml") {
       var map = parseMapInfo(filePath, source);
+      var regionDir = filePath.replace("map.xml", "region");
+      if (fs.existsSync(regionDir)) {
+        var chunkInfo = parseChunkInfo(regionDir);
+        map["chunks"] = chunkInfo;
+      };
       if (map) maps.push(map);
     };
   });
@@ -174,6 +180,30 @@ const parseMapInfo = (target, source) => {
   return map;
 }
 
+const parseChunkInfo = (regionDir) => {
+  var chunks = {
+    x: {
+      min: 0,
+      max: 0
+    },
+    z: {
+      min: 0,
+      max: 0
+    }
+  };
+
+  const files = fs.readdirSync(regionDir);
+  files.forEach((file) => {
+    var [regionSegmentX, regionSegmentZ] = file.split(".").slice(1, 3);
+    chunks["x"]["min"] = regionSegmentX < chunks["x"]["min"] ? regionSegmentX : chunks["x"]["min"];
+    chunks["x"]["max"] = regionSegmentX > chunks["x"]["max"] ? regionSegmentX : chunks["x"]["max"];
+    chunks["z"]["min"] = regionSegmentZ < chunks["z"]["min"] ? regionSegmentZ : chunks["z"]["min"];
+    chunks["z"]["max"] = regionSegmentZ > chunks["z"]["max"] ? regionSegmentZ : chunks["z"]["max"];
+  });
+
+  return chunks;
+}
+
 const determineMapLicense = (target, source) => {
   const licenseTarget = target.replace("map.xml", "LICENSE.txt");
   if (!fs.existsSync(licenseTarget)) return "not-found";
@@ -245,11 +275,7 @@ const main = async () => {
     await git.clone(source.url, repoDir);
     var foundMaps = parseRepo(repoDir, source);
     if (foundMaps) mapsOutput = [].concat(mapsOutput, foundMaps);
-
-    fs.rmSync(repoDir, { recursive: true })
   };
-
-  fs.rmSync(tmpDir, { recursive: true })
 
   const outputFile = args.output ? args.output : path.join(__dirname, "..", "pgm.json");
   if (fs.existsSync(outputFile)) fs.rmSync(outputFile);
