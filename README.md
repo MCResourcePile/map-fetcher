@@ -3,11 +3,34 @@ ResourcePile Map Fetcher
 
 This tool fetches specific Git repositories that contain [PGM maps](https://pgm.dev/) and parses each map's XML file to be displayed on the [MCResourcePile website](https://mcresourcepile.github.io/maps/pgm).
 
-Repositories are stored in [src/sources.js](https://github.com/MCResourcePile/map-fetcher/blob/main/src/sources.js). If you actively maintain a Git repository with PGM maps and would like them included on the ResourcePile website please submit a pull request adding your repository details to this file.
-
 ### Running
 
 `node src/index.js --output="path\to\output.json"`
+
+### Adding repositories
+
+Repositories are stored in [src/sources.js](https://github.com/MCResourcePile/map-fetcher/blob/main/src/sources.js). If you actively maintain a Git repository with PGM maps and would like them included on the ResourcePile website please submit a pull request adding your repository details to this file.
+
+
+| Option          | Description                                                                         |
+|-----------------|-------------------------------------------------------------------------------------|
+| `"maintainer"`  | The username of the maintainer.                                                     |
+| `"repository"`  | The name of the repository.                                                         |
+| `"url"`         | Full URL to the Git host frontend of the repository.                                |
+| `"branch"`      | The main branch.                                                                    |
+| `"license"`     | The repository license. Use `ambiguous` if each map has its own `LICENSE.txt` file. |
+| `"global_tags"` | An array of tags to apply to all maps in the repository. Optional.                  |
+
+```json
+ {
+    "maintainer": "OvercastCommunity",
+    "repository": "public-competitive",
+    "url": "https://github.com/OvercastCommunity/public-competitive",
+    "branch": "master",
+    "license": "ambiguous",
+    "global_tags": ["tournament"]
+ }
+```
 
 ### Sample Map Output
 
@@ -33,7 +56,7 @@ Repositories are stored in [src/sources.js](https://github.com/MCResourcePile/ma
         },
         {
             "name": "Red",
-            "color": "dark red",
+            "color": "dark_red",
             "size": "5"
         }
     ],
