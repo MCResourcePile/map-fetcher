@@ -201,6 +201,11 @@ const parseRegionInfo = (regionDir) => {
     regions["z"]["max"] = regionSegmentZ > regions["z"]["max"] ? regionSegmentZ : regions["z"]["max"];
   });
 
+  regions["x"]["min"] *= 32;
+  regions["z"]["min"] *= 32;
+  regions["x"]["max"] = (regions["x"]["max"] + 1) * 32;
+  regions["z"]["max"] = (regions["z"]["max"] + 1) * 32;
+
   return regions;
 }
 
