@@ -24,8 +24,8 @@ const parseRepo = (root, source) => {
       var map = parseMapInfo(filePath, source);
       var regionDir = filePath.replace("map.xml", "region");
       if (fs.existsSync(regionDir)) {
-        var chunkInfo = parseChunkInfo(regionDir);
-        map["chunks"] = chunkInfo;
+        var regionInfo = parseRegionInfo(regionDir);
+        map["regions"] = regionInfo;
       };
       if (map) maps.push(map);
     };
@@ -180,8 +180,8 @@ const parseMapInfo = (target, source) => {
   return map;
 }
 
-const parseChunkInfo = (regionDir) => {
-  var chunks = {
+const parseRegionInfo = (regionDir) => {
+  var regions = {
     x: {
       min: 0,
       max: 0
@@ -194,14 +194,14 @@ const parseChunkInfo = (regionDir) => {
 
   const files = fs.readdirSync(regionDir);
   files.forEach((file) => {
-    var [regionSegmentX, regionSegmentZ] = file.split(".").slice(1, 3);
-    chunks["x"]["min"] = regionSegmentX < chunks["x"]["min"] ? regionSegmentX : chunks["x"]["min"];
-    chunks["x"]["max"] = regionSegmentX > chunks["x"]["max"] ? regionSegmentX : chunks["x"]["max"];
-    chunks["z"]["min"] = regionSegmentZ < chunks["z"]["min"] ? regionSegmentZ : chunks["z"]["min"];
-    chunks["z"]["max"] = regionSegmentZ > chunks["z"]["max"] ? regionSegmentZ : chunks["z"]["max"];
+    var [regionSegmentX, regionSegmentZ] = file.split(".").slice(1, 3).map(v => parseInt(v));
+    regions["x"]["min"] = regionSegmentX < regions["x"]["min"] ? regionSegmentX : regions["x"]["min"];
+    regions["x"]["max"] = regionSegmentX > regions["x"]["max"] ? regionSegmentX : regions["x"]["max"];
+    regions["z"]["min"] = regionSegmentZ < regions["z"]["min"] ? regionSegmentZ : regions["z"]["min"];
+    regions["z"]["max"] = regionSegmentZ > regions["z"]["max"] ? regionSegmentZ : regions["z"]["max"];
   });
 
-  return chunks;
+  return regions;
 }
 
 const determineMapLicense = (target, source) => {
