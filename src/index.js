@@ -182,29 +182,25 @@ const parseMapInfo = (target, source) => {
 
 const parseRegionInfo = (regionDir) => {
   var regions = {
-    x: {
-      min: 0,
-      max: 0
-    },
-    z: {
-      min: 0,
-      max: 0
-    }
+    min_x: 0,
+    min_z: 0,
+    max_x: 0,
+    max_z: 0
   };
 
   const files = fs.readdirSync(regionDir);
   files.forEach((file) => {
     var [regionSegmentX, regionSegmentZ] = file.split(".").slice(1, 3).map(v => parseInt(v));
-    regions["x"]["min"] = regionSegmentX < regions["x"]["min"] ? regionSegmentX : regions["x"]["min"];
-    regions["x"]["max"] = regionSegmentX > regions["x"]["max"] ? regionSegmentX : regions["x"]["max"];
-    regions["z"]["min"] = regionSegmentZ < regions["z"]["min"] ? regionSegmentZ : regions["z"]["min"];
-    regions["z"]["max"] = regionSegmentZ > regions["z"]["max"] ? regionSegmentZ : regions["z"]["max"];
+    regions["min_x"] = regionSegmentX < regions["min_x"] ? regionSegmentX : regions["min_x"];
+    regions["min_z"] = regionSegmentZ < regions["min_z"] ? regionSegmentZ : regions["min_z"];
+    regions["max_x"] = regionSegmentX > regions["max_x"] ? regionSegmentX : regions["max_x"];
+    regions["max_z"] = regionSegmentZ > regions["max_z"] ? regionSegmentZ : regions["max_z"];
   });
 
-  regions["x"]["min"] *= 32;
-  regions["z"]["min"] *= 32;
-  regions["x"]["max"] = (regions["x"]["max"] + 1) * 32;
-  regions["z"]["max"] = (regions["z"]["max"] + 1) * 32;
+  regions["min_x"] *= 32;
+  regions["min_z"] *= 32;
+  regions["max_x"] = (regions["max_x"] + 1) * 32;
+  regions["max_z"] = (regions["max_z"] + 1) * 32;
 
   return regions;
 }
