@@ -132,6 +132,7 @@ const parseMapInfo = (target, source) => {
     // include any special tags
     if (target.toLowerCase().includes("christmas")) map["tags"].push("christmas");
     if (target.toLowerCase().includes("halloween")) map["tags"].push("halloween");
+    if (target.toLowerCase().includes("arcade")) map["tags"].push("arcade");
     // warzone seasonal folders
     if (target.toLowerCase().includes("holiday")) map["tags"].push("christmas");
     if (target.toLowerCase().includes("spooky")) map["tags"].push("halloween");
