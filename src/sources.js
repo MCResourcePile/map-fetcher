@@ -22,6 +22,7 @@ const SOURCES = [
     "url": "https://github.com/OvercastCommunity/public-competitive",
     "branch": "master",
     "license": "ambiguous",
+    "includes_url": "https://github.com/OvercastCommunity/PublicMaps/tree/main/includes",
     "global_tags": ["tournament"]
   },
   {
