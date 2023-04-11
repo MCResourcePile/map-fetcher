@@ -172,7 +172,15 @@ const parseMapInfo = (target, source) => {
         files: []
       };
       for (var i = 0; i < result.map.include.length; i++) {
-        if (result.map.include[i].$.id) include["files"].push(result.map.include[i].$.id);
+        if (result.map.include[i].$.id) {
+          var includeReference = result.map.include[i].$.id;
+          include["files"].push(includeReference);
+
+          // special OCC gamemodes that use standard include files
+          if (["4-team-bedwars", "8-team-bedwars"].includes(includeReference)) map["tags"].push("bedwars");
+          if ("bridge" === includeReference) map["tags"].push("bridge");
+          if ("infection" === includeReference) map["tags"].push("infection");
+        }
       };
       map["source"]["includes"] = include;
     };
