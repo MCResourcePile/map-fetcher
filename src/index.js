@@ -61,8 +61,13 @@ const parseMapInfo = (target, source) => {
         if (result.map.authors[0].author[i].$.contribution) {
           author["contribution"] = result.map.authors[0].author[i].$.contribution;
         };
-      } else {
-        author["username"] = result.map.authors[0].author[i]._ ? result.map.authors[0].author[i]._ : result.map.authors[0].author[i];
+      }
+      if (result.map.authors[0].author[i].hasOwnProperty('_')) {
+        author["username"] = result.map.authors[0].author[i]._;
+      };
+      // for when a username is provided and there are no attributes
+      if (typeof result.map.authors[0].author[i] === 'string') {
+        author["username"] = result.map.authors[0].author[i];
       };
 
       map["authors"].push(author);
@@ -79,8 +84,12 @@ const parseMapInfo = (target, source) => {
           if (result.map.contributors[0].contributor[i].$.contribution) {
             contributor["contribution"] = result.map.contributors[0].contributor[i].$.contribution;
           };
-        } else {
-          contributor["username"] = result.map.contributors[0].contributor[i]._ ? result.map.contributors[0].contributor[i]._ : result.map.contributors[0].contributor[i];
+        }
+        if (result.map.contributors[0].contributor[i]._) {
+          contributor["username"] = result.map.contributors[0].contributor[i]._;
+        };
+        if (typeof result.map.contributors[0].contributor[i] === 'string') {
+          contributor["username"] = result.map.contributors[0].contributor[i];
         };
 
         map["contributors"].push(contributor);
@@ -180,6 +189,7 @@ const parseMapInfo = (target, source) => {
           if (["4-team-bedwars", "8-team-bedwars"].includes(includeReference)) map["tags"].push("bedwars");
           if ("bridge" === includeReference) map["tags"].push("bridge");
           if ("infection" === includeReference) map["tags"].push("infection");
+          if ("gs" === includeReference) map["tags"].push("gs");
         }
       };
       map["source"]["includes"] = include;
