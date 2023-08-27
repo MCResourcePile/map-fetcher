@@ -79,9 +79,7 @@ const parseMap = (target, source) => {
     preprocessXml(result.map);
 
     if (result.map.constant) {
-      console.log(result.map.constant)
       result.map.constant.forEach((constant, i) => {
-        console.log(constant)
         constants[constant.$.id] = constant._
       });
     };
