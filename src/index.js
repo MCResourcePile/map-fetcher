@@ -21,7 +21,7 @@ const parseRepo = (root, source) => {
       var nestedMaps = parseRepo(filePath, source);
       if (nestedMaps) maps = [].concat(maps, nestedMaps);
     } else if (file === "map.xml") {
-      var map = parseMapInfo(filePath, source);
+      var map = parseMap(filePath, source);
       var regionDir = filePath.replace("map.xml", "region");
       if (fs.existsSync(regionDir)) {
         var regionInfo = parseRegionInfo(regionDir);
@@ -34,12 +34,68 @@ const parseRepo = (root, source) => {
   return maps;
 };
 
-const parseMapInfo = (target, source) => {
+const parseMap = (target, source) => {
   var map = {};
+  var variants = [];
+  var constants = {};
+
   const data = fs.readFileSync(target, 'utf8');
 
   xml.parseString(data, (err, result) => {
     console.log(`Parsing map data from ${target}`);
+
+    if (result.map.variant) {
+      for (var i in result.map.variant) {
+        variants.push({
+          "id": result.map.variant[i].$.id,
+          "name": result.map.variant[i]._,
+          "override_name": result.map.variant[i].$.hasOwnProperty("override") ? result.map.variant[i].$.override === "true" : false
+        });
+      };
+    };
+
+    const preprocessXml = (node) => {
+      for (var [key, value] of Object.entries(node)) {
+        if (["if", "unless"].includes(key)) {
+          for (var i in value) {
+            var variants = value[i].$.variant.split(",");
+            if (key === "if" && variants.includes("default") || key === "unless" && !variants.includes("default")) {
+              delete value[i]["$"];
+              for (var [innerKey, innerValue] of Object.entries(value[i])) {
+                if (node.hasOwnProperty(innerKey)) {
+                  node[innerKey] = node[innerKey].concat(innerValue);
+                } else {
+                  node[innerKey] = innerValue;
+                };
+              };
+            };
+          };
+        };
+        if (typeof value === "object" && key !== "$") {
+          preprocessXml(value);
+        };
+      };
+    };
+    preprocessXml(result.map);
+
+    if (result.map.constant) {
+      console.log(result.map.constant)
+      result.map.constant.forEach((constant, i) => {
+        console.log(constant)
+        constants[constant.$.id] = constant._
+      });
+    };
+
+    const insertConstantValues = (node) => {
+      var tmp = JSON.stringify(node);
+      tmp = tmp.replace(/\${(\w*)}/g, (keyExpr, key) => {
+        if (constants.hasOwnProperty(key)) {
+          return constants[key];
+        }
+      });
+      return JSON.parse(tmp);
+    }
+    result.map = insertConstantValues(result.map);
 
     map["name"] = result.map.name[0];
     map["slug"] = toSlug(result.map.name[0]);
@@ -62,11 +118,11 @@ const parseMapInfo = (target, source) => {
           author["contribution"] = result.map.authors[0].author[i].$.contribution;
         };
       }
-      if (result.map.authors[0].author[i].hasOwnProperty('_')) {
+      if (result.map.authors[0].author[i].hasOwnProperty("_")) {
         author["username"] = result.map.authors[0].author[i]._;
       };
       // for when a username is provided and there are no attributes
-      if (typeof result.map.authors[0].author[i] === 'string') {
+      if (typeof result.map.authors[0].author[i] === "string") {
         author["username"] = result.map.authors[0].author[i];
       };
 
@@ -88,7 +144,7 @@ const parseMapInfo = (target, source) => {
         if (result.map.contributors[0].contributor[i]._) {
           contributor["username"] = result.map.contributors[0].contributor[i]._;
         };
-        if (typeof result.map.contributors[0].contributor[i] === 'string') {
+        if (typeof result.map.contributors[0].contributor[i] === "string") {
           contributor["username"] = result.map.contributors[0].contributor[i];
         };
 
@@ -195,6 +251,7 @@ const parseMapInfo = (target, source) => {
       map["source"]["includes"] = include;
     };
   });
+  map["variants"] = variants;
 
   return map;
 }
