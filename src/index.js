@@ -8,20 +8,21 @@ const nbt = require("nbt");
 
 const SOURCES = require("./sources").SOURCES;
 
-const parseRepo = (root, source) => {
+const parseRepo = async (root, source) => {
   const IGNORE_DIRS = [".git", ".github", "region"];
   var maps = [];
 
   const files = fs.readdirSync(root);
-  files.forEach((file) => {
+  for (var i = 0; i < files.length; i++) {
+    const file = files[i];
     const filePath = path.join(root, file);
     const stat = fs.lstatSync(filePath);
 
     if (stat.isDirectory() && !IGNORE_DIRS.includes(file)) {
-      var nestedMaps = parseRepo(filePath, source);
+      var nestedMaps = await parseRepo(filePath, source);
       if (nestedMaps) maps = [].concat(maps, nestedMaps);
     } else if (file === "map.xml") {
-      var map = parseMap(filePath, source);
+      var map = await parseMap(filePath, source);
       var regionDir = filePath.replace("map.xml", "region");
       if (fs.existsSync(regionDir)) {
         var regionInfo = parseRegionInfo(regionDir);
@@ -29,226 +30,272 @@ const parseRepo = (root, source) => {
       };
       if (map) maps.push(map);
     };
-  });
+  };
 
   return maps;
 };
 
-const parseMap = (target, source) => {
+const parseMap = async (target, source) => {
   var map = {};
   var variants = [];
   var constants = {};
 
+  var xmlData;
+
   const data = fs.readFileSync(target, 'utf8');
 
-  xml.parseString(data, (err, result) => {
-    console.log(`Parsing map data from ${target}`);
+  xml.parseString(data, async (err, result) => {
+    xmlData = result;
+  });
 
-    if (result.map.variant) {
-      for (var i in result.map.variant) {
-        variants.push({
-          "id": result.map.variant[i].$.id,
-          "name": result.map.variant[i]._,
-          "override_name": result.map.variant[i].$.hasOwnProperty("override") ? result.map.variant[i].$.override === "true" : false
-        });
-      };
+  console.log(`Parsing map data from ${target}`);
+
+  if (xmlData.map.variant) {
+    for (var i in xmlData.map.variant) {
+      variants.push({
+        "id": xmlData.map.variant[i].$.id,
+        "name": xmlData.map.variant[i]._,
+        "override_name": xmlData.map.variant[i].$.hasOwnProperty("override") ? xmlData.map.variant[i].$.override === "true" : false
+      });
     };
+  };
 
-    const preprocessXml = (node) => {
-      for (var [key, value] of Object.entries(node)) {
-        if (["if", "unless"].includes(key)) {
-          for (var i in value) {
-            var variants = value[i].$.variant.split(",");
-            if (key === "if" && variants.includes("default") || key === "unless" && !variants.includes("default")) {
-              delete value[i]["$"];
-              for (var [innerKey, innerValue] of Object.entries(value[i])) {
-                if (node.hasOwnProperty(innerKey)) {
-                  node[innerKey] = node[innerKey].concat(innerValue);
-                } else {
-                  node[innerKey] = innerValue;
-                };
+  const preprocessXml = (node) => {
+    for (var [key, value] of Object.entries(node)) {
+      if (["if", "unless"].includes(key)) {
+        for (var i in value) {
+          if (!value[i].$) continue;
+          var variants = value[i].$.variant.split(",");
+          if (key === "if" && variants.includes("default") || key === "unless" && !variants.includes("default")) {
+            delete value[i]["$"];
+            for (var [innerKey, innerValue] of Object.entries(value[i])) {
+              if (node.hasOwnProperty(innerKey)) {
+                node[innerKey] = node[innerKey].concat(innerValue);
+              } else {
+                node[innerKey] = innerValue;
               };
             };
           };
         };
-        if (typeof value === "object" && key !== "$") {
-          preprocessXml(value);
+      };
+      if (typeof value === "object" && key !== "$") {
+        preprocessXml(value);
+      };
+    };
+  };
+  preprocessXml(xmlData.map);
+
+  var workingTarget = target.replaceAll("\\", "/");
+  var repoSegment = `/${source.maintainer}/${source.repository}/`;
+  var mapDir = workingTarget.split(repoSegment)[1].replace("/map.xml", "");
+  var mapImageUrl = (source, mapDir) => {
+    if (source.url.includes("github.com")) {
+      return `https://raw.githubusercontent.com/${source.maintainer}/${source.repository}/${source.branch}/${mapDir}/map.png`
+    };
+    if (source.url.includes("gitlab.com")) {
+      return `https://gitlab.com/${source.maintainer}/${source.repository}/-/raw/${source.branch}/${mapDir}/map.png`
+    };
+  };
+
+  mapSource = {
+    maintainer: source.maintainer,
+    repository: source.repository,
+    path: mapDir,
+    license: source.license_scope === "repository" ? source.license : determineMapLicense(target, source),
+    license_scope: source.license_scope,
+    github_url: source.url + "/tree/" + source.branch + "/" + mapDir,
+    image_url: mapImageUrl(source, mapDir)
+  };
+
+  const insertIncludeXml = async () => {
+    for (var i = 0; i < xmlData.map.include.length; i++) {
+      if (xmlData.map.include[i].$.id && !include.files.includes(xmlData.map.include[i].$.id)) {
+        var includeReference = xmlData.map.include[i].$.id;
+        include["files"].push(includeReference);
+
+        if (include["root"] !== false) {
+          console.log("Fetching include data from", getRawUrl(`${source.includes_url}/${includeReference}.xml`));
+          var res = await fetch(getRawUrl(`${source.includes_url}/${includeReference}.xml`), {
+            method: "get",
+            headers: {
+              "User-Agent": "NodeJS"
+            }
+          });
+          if (res.ok) {
+            const includeFileData = await res.text();
+            xml.parseString(includeFileData, async (includeFileErr, includeFileResult) => {
+              for (var [includeKey, includeValue] of Object.entries(includeFileResult.map)) {
+                if (includeKey === "$") {
+                  continue;
+                };
+
+                if (xmlData.map.hasOwnProperty(includeKey)) {
+                  xmlData.map[includeKey] = xmlData.map[includeKey].concat(includeValue);
+                } else {
+                  xmlData.map[includeKey] = includeValue;
+                };
+              };
+            });
+          };
         };
       };
     };
-    preprocessXml(result.map);
+  };
 
-    if (result.map.constant) {
-      result.map.constant.forEach((constant, i) => {
-        constants[constant.$.id] = constant._
-      });
+  if (xmlData.map.include) {
+    var include = {
+      root: source.includes_url || false,
+      files: []
+    };
+    var initialIncludeCount = 0;
+    do {
+      initialIncludeCount = xmlData.map.include.length;
+      await insertIncludeXml();
+      preprocessXml(xmlData.map);
+    } while (initialIncludeCount !== xmlData.map.include.length);
+
+    mapSource["includes"] = include;
+  };
+
+  if (xmlData.map.constant) {
+    xmlData.map.constant.forEach((constant, i) => {
+      constants[constant.$.id] = constant._
+    });
+  };
+
+  const insertConstantValues = (node) => {
+    var tmp = JSON.stringify(node);
+    tmp = tmp.replace(/\${(\w*)}/g, (keyExpr, key) => {
+      if (constants.hasOwnProperty(key)) {
+        return constants[key];
+      };
+    });
+    return JSON.parse(tmp);
+  };
+  xmlData.map = insertConstantValues(xmlData.map);
+
+  map["name"] = xmlData.map.name[0];
+  map["slug"] = toSlug(xmlData.map.name[0]);
+  map["id"] = toSlug([source.maintainer, source.repository, xmlData.map.name[0]].join("_"));
+  map["proto"] = xmlData.map.$.proto;
+  map["version"] = xmlData.map.version[0];
+  if (xmlData.map.objective) map["objective"] = xmlData.map.objective[0];
+  if (xmlData.map.created) map["created"] = xmlData.map.created[0];
+  map["phase"] = xmlData.map.phase ? xmlData.map.phase[0] : "production";
+  map["edition"] = xmlData.map.edition ? xmlData.map.edition[0] : "standard";
+
+  map["authors"] = [];
+  for (var i in xmlData.map.authors[0].author) {
+    var author = {};
+    if (xmlData.map.authors[0].author[i].$) {
+      if (xmlData.map.authors[0].author[i].$.uuid) {
+        author["uuid"] = xmlData.map.authors[0].author[i].$.uuid;
+      };
+      if (xmlData.map.authors[0].author[i].$.contribution) {
+        author["contribution"] = xmlData.map.authors[0].author[i].$.contribution;
+      };
+    };
+    if (xmlData.map.authors[0].author[i].hasOwnProperty("_")) {
+      author["username"] = xmlData.map.authors[0].author[i]._;
+    };
+    // for when a username is provided and there are no attributes
+    if (typeof xmlData.map.authors[0].author[i] === "string") {
+      author["username"] = xmlData.map.authors[0].author[i];
     };
 
-    const insertConstantValues = (node) => {
-      var tmp = JSON.stringify(node);
-      tmp = tmp.replace(/\${(\w*)}/g, (keyExpr, key) => {
-        if (constants.hasOwnProperty(key)) {
-          return constants[key];
-        }
-      });
-      return JSON.parse(tmp);
-    }
-    result.map = insertConstantValues(result.map);
+    map["authors"].push(author);
+  };
 
-    map["name"] = result.map.name[0];
-    map["slug"] = toSlug(result.map.name[0]);
-    map["id"] = toSlug([source.maintainer, source.repository, result.map.name[0]].join("_"));
-    map["proto"] = result.map.$.proto;
-    map["version"] = result.map.version[0];
-    if (result.map.objective) map["objective"] = result.map.objective[0];
-    if (result.map.created) map["created"] = result.map.created[0];
-    map["phase"] = result.map.phase ? result.map.phase[0] : "production";
-    map["edition"] = result.map.edition ? result.map.edition[0] : "standard";
-
-    map["authors"] = [];
-    for (var i in result.map.authors[0].author) {
-      var author = {};
-      if (result.map.authors[0].author[i].$) {
-        if (result.map.authors[0].author[i].$.uuid) {
-          author["uuid"] = result.map.authors[0].author[i].$.uuid;
+  if (xmlData.map.contributors) {
+    map["contributors"] = [];
+    for (var i in xmlData.map.contributors[0].contributor) {
+      var contributor = {};
+      if (xmlData.map.contributors[0].contributor[i].$) {
+        if (xmlData.map.contributors[0].contributor[i].$.uuid) {
+          contributor["uuid"] = xmlData.map.contributors[0].contributor[i].$.uuid;
         };
-        if (result.map.authors[0].author[i].$.contribution) {
-          author["contribution"] = result.map.authors[0].author[i].$.contribution;
+        if (xmlData.map.contributors[0].contributor[i].$.contribution) {
+          contributor["contribution"] = xmlData.map.contributors[0].contributor[i].$.contribution;
         };
       }
-      if (result.map.authors[0].author[i].hasOwnProperty("_")) {
-        author["username"] = result.map.authors[0].author[i]._;
+      if (xmlData.map.contributors[0].contributor[i]._) {
+        contributor["username"] = xmlData.map.contributors[0].contributor[i]._;
       };
-      // for when a username is provided and there are no attributes
-      if (typeof result.map.authors[0].author[i] === "string") {
-        author["username"] = result.map.authors[0].author[i];
+      if (typeof xmlData.map.contributors[0].contributor[i] === "string") {
+        contributor["username"] = xmlData.map.contributors[0].contributor[i];
       };
 
-      map["authors"].push(author);
+      map["contributors"].push(contributor);
     };
+  };
 
-    if (result.map.contributors) {
-      map["contributors"] = [];
-      for (var i in result.map.contributors[0].contributor) {
-        var contributor = {};
-        if (result.map.contributors[0].contributor[i].$) {
-          if (result.map.contributors[0].contributor[i].$.uuid) {
-            contributor["uuid"] = result.map.contributors[0].contributor[i].$.uuid;
-          };
-          if (result.map.contributors[0].contributor[i].$.contribution) {
-            contributor["contribution"] = result.map.contributors[0].contributor[i].$.contribution;
-          };
-        }
-        if (result.map.contributors[0].contributor[i]._) {
-          contributor["username"] = result.map.contributors[0].contributor[i]._;
-        };
-        if (typeof result.map.contributors[0].contributor[i] === "string") {
-          contributor["username"] = result.map.contributors[0].contributor[i];
-        };
-
-        map["contributors"].push(contributor);
-      };
-    };
-
-    map["teams"] = [];
-    if (result.map.teams) {
-      for (var i in result.map.teams[0].team) {
-        var team = result.map.teams[0].team[i];
-        map["teams"].push({
-          name: team._,
-          color: toSlug(team.$.color),
-          size: team.$.max
-        });
-      };
-    };
-    if (result.map.players) {
+  map["teams"] = [];
+  if (xmlData.map.teams) {
+    for (var i in xmlData.map.teams[0].team) {
+      var team = xmlData.map.teams[0].team[i];
       map["teams"].push({
-        name: "Players",
-        color: "yellow",
-        size: result.map.players[0].$.max
+        name: team._,
+        color: toSlug(team.$.color),
+        size: team.$.max
       });
     };
+  };
+  if (xmlData.map.players) {
+    map["teams"].push({
+      name: "Players",
+      color: "yellow",
+      size: xmlData.map.players[0].$.max
+    });
+  };
 
-    map["tags"] = [];
-    if (result.map.teams && result.map.teams[0].team) map["tags"].push(`${result.map.teams[0].team.length}teams`);
-    if (result.map.players)      map["tags"].push("ffa");
-    if (result.map.cores)        map["tags"].push("core");
-    if (result.map.destroyables) map["tags"].push("monument");
-    if (result.map.wools)        map["tags"].push("wool");
-    if (result.map.payloads)     map["tags"].push("payload");
-    // todo: differentiate between classic ctf, kotf, etc
-    if (result.map.flags)        map["tags"].push("flag");
+  map["tags"] = [];
+  if (xmlData.map.teams && xmlData.map.teams[0].team) map["tags"].push(`${xmlData.map.teams[0].team.length}teams`);
+  if (xmlData.map.players) map["tags"].push("ffa");
+  if (xmlData.map.cores) map["tags"].push("core");
+  if (xmlData.map.destroyables) map["tags"].push("monument");
+  if (xmlData.map.wools) map["tags"].push("wool");
+  if (xmlData.map.payloads) map["tags"].push("payload");
+  // todo: differentiate between classic ctf, kotf, etc
+  if (xmlData.map.flags) map["tags"].push("flag");
 
-    if (result.map.king || result.map["control-points"]) {
-      (result.map.score) ? map["tags"].push("hill", "king") : map["tags"].push("hill", "control");
-    };
+  if (xmlData.map.king || xmlData.map["control-points"]) {
+    (xmlData.map.score) ? map["tags"].push("hill", "king"): map["tags"].push("hill", "control");
+  };
 
-    if (result.map.blitz)        map["tags"].push("blitz");
-    if (result.map.rage)         map["tags"].push("rage");
-    if (result.map.time)         map["tags"].push("timelimit");
-    if (result.map.score && result.map.score[0].kills) map["tags"].push("deathmatch");
-    if (result.map.score && result.map.score[0].box)   map["tags"].push("scorebox");
+  if (xmlData.map.blitz) map["tags"].push("blitz");
+  if (xmlData.map.rage) map["tags"].push("rage");
+  if (xmlData.map.time) map["tags"].push("timelimit");
+  if (xmlData.map.score && xmlData.map.score[0].kills) map["tags"].push("deathmatch");
+  if (xmlData.map.score && xmlData.map.score[0].box) map["tags"].push("scorebox");
 
-    if (map["edition"] !== "standard") map["tags"].push(map["edition"]);
-    if (target.toLowerCase().includes("competitive")) map["tags"].push("tournament");
+  if (map["edition"] !== "standard") map["tags"].push(map["edition"]);
+  if (target.toLowerCase().includes("competitive")) map["tags"].push("tournament");
 
-    // include any special tags
-    if (target.toLowerCase().includes("christmas")) map["tags"].push("christmas");
-    if (target.toLowerCase().includes("halloween")) map["tags"].push("halloween");
-    if (target.toLowerCase().includes("arcade")) map["tags"].push("arcade");
-    // warzone seasonal folders
-    if (target.toLowerCase().includes("holiday")) map["tags"].push("christmas");
-    if (target.toLowerCase().includes("spooky")) map["tags"].push("halloween");
+  // include any special tags
+  if (target.toLowerCase().includes("christmas")) map["tags"].push("christmas");
+  if (target.toLowerCase().includes("halloween")) map["tags"].push("halloween");
+  if (target.toLowerCase().includes("arcade")) map["tags"].push("arcade");
+  // warzone seasonal folders
+  if (target.toLowerCase().includes("holiday")) map["tags"].push("christmas");
+  if (target.toLowerCase().includes("spooky")) map["tags"].push("halloween");
 
-    if (source.global_tags) {
-      map["tags"] = [].concat(map["tags"], source.global_tags);
-    };
+  if (mapSource.hasOwnProperty("includes")) {
+    mapSource["includes"]["files"].forEach((includeReference) => {
+      // special OCC gamemodes that use standard include files
+      if (["4-team-bedwars", "8-team-bedwars"].includes(includeReference)) map["tags"].push("bedwars");
+      if ("bridge" === includeReference) map["tags"].push("bridge");
+      if ("infection" === includeReference) map["tags"].push("infection");
+      if ("gs" === includeReference) map["tags"].push("gs");
+    });
+  };
 
-    // remove duplicate tag entries
-    map["tags"] = [...new Set(map["tags"])];
+  if (source.global_tags) {
+    map["tags"] = [].concat(map["tags"], source.global_tags);
+  };
 
-    var workingTarget = target.replaceAll("\\", "/");
-    var repoSegment = `/${source.maintainer}/${source.repository}/`;
-    var mapDir = workingTarget.split(repoSegment)[1].replace("/map.xml", "");
-    var mapImageUrl = (source, mapDir) => {
-      if (source.url.includes("github.com")) {
-        return `https://raw.githubusercontent.com/${source.maintainer}/${source.repository}/${source.branch}/${mapDir}/map.png`
-      };
-      if (source.url.includes("gitlab.com")) {
-        return `https://gitlab.com/${source.maintainer}/${source.repository}/-/raw/${source.branch}/${mapDir}/map.png`
-      };
-    };
-
-    map["source"] = {
-      maintainer: source.maintainer,
-      repository: source.repository,
-      path: mapDir,
-      license: source.license != "ambiguous" ? source.license : determineMapLicense(target, source),
-      license_scope: source.license != "ambiguous" ? "repository" : "map",
-      github_url: source.url + "/tree/" + source.branch + "/" + mapDir,
-      image_url: mapImageUrl(source, mapDir)
-    };
-
-    if (result.map.include) {
-      var include = {
-        root: source.includes_url || "https://github.com/MCResourcePile/pgm-includes",
-        files: []
-      };
-      for (var i = 0; i < result.map.include.length; i++) {
-        if (result.map.include[i].$.id) {
-          var includeReference = result.map.include[i].$.id;
-          include["files"].push(includeReference);
-
-          // special OCC gamemodes that use standard include files
-          if (["4-team-bedwars", "8-team-bedwars"].includes(includeReference)) map["tags"].push("bedwars");
-          if ("bridge" === includeReference) map["tags"].push("bridge");
-          if ("infection" === includeReference) map["tags"].push("infection");
-          if ("gs" === includeReference) map["tags"].push("gs");
-        }
-      };
-      map["source"]["includes"] = include;
-    };
-  });
+  // remove duplicate tag entries
+  map["tags"] = [...new Set(map["tags"])];
+  map["source"] = mapSource;
   map["variants"] = variants;
 
   return map;
@@ -330,15 +377,27 @@ const determineMapLicense = (target, source) => {
 };
 
 const toSlug = (string) => {
-  return string.toLowerCase().replace(/[^\w ]+/g, '').replace(/ +/g, '_');
+  return string.toLowerCase().replace(/[^\w ]+/g, "").replace(/ +/g, "_");
+}
+
+const getRawUrl = (url) => {
+  if (url.includes("github.com")) {
+    url = url.replace("https://github.com/", "https://raw.githubusercontent.com/");
+    url = url.replace("/tree/", "/");
+  };
+  if (url.includes("gitlab.com")) {
+    url = "";
+  };
+
+  return url;
 }
 
 const main = async () => {
   const args = require('yargs').argv;
 
   const tmpDir = path.join(__dirname, "..", "tmp");
-  if (fs.existsSync(tmpDir)) fs.rmSync(tmpDir, { recursive: true });
-  fs.mkdirSync(tmpDir);
+  // if (fs.existsSync(tmpDir)) fs.rmSync(tmpDir, { recursive: true });
+  // fs.mkdirSync(tmpDir);
 
   var mapsOutput = [];
 
@@ -347,9 +406,10 @@ const main = async () => {
     const repoDir = path.join(tmpDir, source.maintainer, source.repository);
 
     console.log(`Fetching maps from ${source.maintainer}/${source.repository}`);
-    await git.clone(source.url, repoDir);
-    var foundMaps = parseRepo(repoDir, source);
+    // await git.clone(source.url, repoDir);
+    var foundMaps = await parseRepo(repoDir, source);
     if (foundMaps) mapsOutput = [].concat(mapsOutput, foundMaps);
+    console.log("============ done parsing repo ============")
   };
 
   const outputFile = args.output ? args.output : path.join(__dirname, "..", "pgm.json");
@@ -367,6 +427,7 @@ const main = async () => {
   jsonData.data.maps = [...new Set(mapsOutput)];
 
   fs.writeFile(outputFile, JSON.stringify(jsonData, null, 4), (err) => {
+    console.log("============ written output ============")
     if (err) return console.log(err);
   });
 };
