@@ -157,15 +157,25 @@ const parseMap = async (target, source) => {
     mapSource["includes"] = include;
   };
 
-  if (xmlData.map.constant) {
-    xmlData.map.constant.forEach((constant, i) => {
-      constants[constant.$.id] = constant._
+  const parseConstants = (constantList) => {
+    if (constantList) {
+      constantList.forEach((constant, i) => {
+        constants[constant.$.id] = constant._
+      });
+    };
+  };
+  if (xmlData.map.constants) {
+    xmlData.map.constants.forEach((constants, i) => {
+      parseConstants(constants.constant);
     });
+  };
+  if (xmlData.map.constant) {
+    parseConstants(xmlData.map.constant);
   };
 
   const insertConstantValues = (node) => {
     var tmp = JSON.stringify(node);
-    tmp = tmp.replace(/\${(\w*)}/g, (keyExpr, key) => {
+    tmp = tmp.replace(/\${([\w-_ ]*)}/g, (keyExpr, key) => {
       if (constants.hasOwnProperty(key)) {
         return constants[key];
       };
@@ -298,6 +308,7 @@ const parseMap = async (target, source) => {
   map["source"] = mapSource;
   if (variants.length > 0) {
     map["variants"] = variants;
+    map["tags"].push("variants");
   };
 
   return map;
@@ -398,8 +409,8 @@ const main = async () => {
   const args = require('yargs').argv;
 
   const tmpDir = path.join(__dirname, "..", "tmp");
-  if (fs.existsSync(tmpDir)) fs.rmSync(tmpDir, { recursive: true });
-  fs.mkdirSync(tmpDir);
+  // if (fs.existsSync(tmpDir)) fs.rmSync(tmpDir, { recursive: true });
+  // fs.mkdirSync(tmpDir);
 
   var mapsOutput = [];
 
@@ -408,7 +419,7 @@ const main = async () => {
     const repoDir = path.join(tmpDir, source.maintainer, source.repository);
 
     console.log(`Fetching maps from ${source.maintainer}/${source.repository}`);
-    await git.clone(source.url, repoDir);
+    // await git.clone(source.url, repoDir);
     var foundMaps = await parseRepo(repoDir, source);
     if (foundMaps) mapsOutput = [].concat(mapsOutput, foundMaps);
   };
