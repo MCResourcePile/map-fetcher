@@ -296,7 +296,9 @@ const parseMap = async (target, source) => {
   // remove duplicate tag entries
   map["tags"] = [...new Set(map["tags"])];
   map["source"] = mapSource;
-  map["variants"] = variants;
+  if (variants.length > 0) {
+    map["variants"] = variants;
+  };
 
   return map;
 }
@@ -396,8 +398,8 @@ const main = async () => {
   const args = require('yargs').argv;
 
   const tmpDir = path.join(__dirname, "..", "tmp");
-  // if (fs.existsSync(tmpDir)) fs.rmSync(tmpDir, { recursive: true });
-  // fs.mkdirSync(tmpDir);
+  if (fs.existsSync(tmpDir)) fs.rmSync(tmpDir, { recursive: true });
+  fs.mkdirSync(tmpDir);
 
   var mapsOutput = [];
 
@@ -406,10 +408,9 @@ const main = async () => {
     const repoDir = path.join(tmpDir, source.maintainer, source.repository);
 
     console.log(`Fetching maps from ${source.maintainer}/${source.repository}`);
-    // await git.clone(source.url, repoDir);
+    await git.clone(source.url, repoDir);
     var foundMaps = await parseRepo(repoDir, source);
     if (foundMaps) mapsOutput = [].concat(mapsOutput, foundMaps);
-    console.log("============ done parsing repo ============")
   };
 
   const outputFile = args.output ? args.output : path.join(__dirname, "..", "pgm.json");
@@ -427,7 +428,6 @@ const main = async () => {
   jsonData.data.maps = [...new Set(mapsOutput)];
 
   fs.writeFile(outputFile, JSON.stringify(jsonData, null, 4), (err) => {
-    console.log("============ written output ============")
     if (err) return console.log(err);
   });
 };
