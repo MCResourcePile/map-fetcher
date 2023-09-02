@@ -22,20 +22,31 @@ const parseRepo = async (root, source) => {
       var nestedMaps = await parseRepo(filePath, source);
       if (nestedMaps) maps = [].concat(maps, nestedMaps);
     } else if (file === "map.xml") {
-      var map = await parseMap(filePath, source);
-      var regionDir = filePath.replace("map.xml", "region");
-      if (fs.existsSync(regionDir)) {
-        var regionInfo = parseRegionInfo(regionDir);
-        map["regions"] = regionInfo;
+      var defaultMap = {};
+      const processMapDir = async (filePath, source, variant = "default", variant_info = {}) => {
+        var map = await parseMap(filePath, source, variant, variant_info);
+        var regionDir = filePath.replace("map.xml", "region");
+        if (fs.existsSync(regionDir)) {
+          var regionInfo = parseRegionInfo(regionDir);
+          map["regions"] = regionInfo;
+        };
+        if (map) maps.push(map);
+        if (variant === "default") defaultMap = map;
       };
-      if (map) maps.push(map);
+      await processMapDir(filePath, source);
+
+      if (defaultMap.hasOwnProperty("variants")) {
+        for (var j = 0; j < defaultMap.variants.length; j++) {
+          await processMapDir(filePath, source, defaultMap.variants[j].id, defaultMap.variants[j]);
+        };
+      };
     };
   };
 
   return maps;
 };
 
-const parseMap = async (target, source) => {
+const parseMap = async (target, source, variant = "default", variant_info) => {
   var map = {};
   var variants = [];
   var constants = {};
@@ -48,25 +59,37 @@ const parseMap = async (target, source) => {
     xmlData = result;
   });
 
-  console.log(`Parsing map data from ${target}`);
+  console.log(`Parsing map data from ${target} (${variant})`);
 
   if (xmlData.map.variant) {
-    for (var i in xmlData.map.variant) {
+    if (variant !== "default") {
       variants.push({
-        "id": xmlData.map.variant[i].$.id,
-        "name": xmlData.map.variant[i]._,
-        "override_name": xmlData.map.variant[i].$.hasOwnProperty("override") ? xmlData.map.variant[i].$.override === "true" : false
+        "id": "default",
+        "name": xmlData.map.name[0],
+        "override_name": true,
+        "world": false,
       });
+    };
+
+    for (var i in xmlData.map.variant) {
+      if (xmlData.map.variant[i].$.id !== variant) {
+        variants.push({
+          "id": xmlData.map.variant[i].$.id,
+          "name": xmlData.map.variant[i].$.hasOwnProperty("override") && xmlData.map.variant[i].$.override === "true" ? xmlData.map.variant[i]._ : `${xmlData.map.name[0]}: ${xmlData.map.variant[i]._}`,
+          "override_name": xmlData.map.variant[i].$.hasOwnProperty("override") ? xmlData.map.variant[i].$.override === "true" : false,
+          "world": xmlData.map.variant[i].$.hasOwnProperty("world") ? xmlData.map.variant[i].$.world : false
+        });
+      };
     };
   };
 
-  const preprocessXml = (node) => {
+  const preprocessXml = (node, variant) => {
     for (var [key, value] of Object.entries(node)) {
       if (["if", "unless"].includes(key)) {
         for (var i in value) {
           if (!value[i].$) continue;
           var variants = value[i].$.variant.split(",");
-          if (key === "if" && variants.includes("default") || key === "unless" && !variants.includes("default")) {
+          if (key === "if" && variants.includes(variant) || key === "unless" && !variants.includes(variant)) {
             delete value[i]["$"];
             for (var [innerKey, innerValue] of Object.entries(value[i])) {
               if (node.hasOwnProperty(innerKey)) {
@@ -79,21 +102,26 @@ const parseMap = async (target, source) => {
         };
       };
       if (typeof value === "object" && key !== "$") {
-        preprocessXml(value);
+        preprocessXml(value, variant);
       };
     };
   };
-  preprocessXml(xmlData.map);
+  preprocessXml(xmlData.map, variant);
 
   var workingTarget = target.replaceAll("\\", "/");
   var repoSegment = `/${source.maintainer}/${source.repository}/`;
   var mapDir = workingTarget.split(repoSegment)[1].replace("/map.xml", "");
   var mapImageUrl = (source, mapDir) => {
+    var variantHasUniqueImage = () => {
+      var imageTestPath = target.replace("map.xml", `${variant_info.world}\\map.png`);
+      return fs.existsSync(imageTestPath);
+    };
+
     if (source.url.includes("github.com")) {
-      return `https://raw.githubusercontent.com/${source.maintainer}/${source.repository}/${source.branch}/${mapDir}/map.png`
+      return `https://raw.githubusercontent.com/${source.maintainer}/${source.repository}/${source.branch}/${mapDir}${variant_info.world && variantHasUniqueImage() ? "/" + variant_info.world : ""}/map.png`
     };
     if (source.url.includes("gitlab.com")) {
-      return `https://gitlab.com/${source.maintainer}/${source.repository}/-/raw/${source.branch}/${mapDir}/map.png`
+      return `https://gitlab.com/${source.maintainer}/${source.repository}/-/raw/${source.branch}/${mapDir}${variant_info.world && variantHasUniqueImage() ? "/" + variant_info.world : ""}/map.png`
     };
   };
 
@@ -157,6 +185,8 @@ const parseMap = async (target, source) => {
     mapSource["includes"] = include;
   };
 
+  console.log(xmlData)
+
   const parseConstants = (constantList) => {
     if (constantList) {
       constantList.forEach((constant, i) => {
@@ -174,6 +204,7 @@ const parseMap = async (target, source) => {
   };
 
   const insertConstantValues = (node) => {
+    console.log(constants)
     var tmp = JSON.stringify(node);
     tmp = tmp.replace(/\${([\w-_ ]*)}/g, (keyExpr, key) => {
       if (constants.hasOwnProperty(key)) {
@@ -184,9 +215,9 @@ const parseMap = async (target, source) => {
   };
   xmlData.map = insertConstantValues(xmlData.map);
 
-  map["name"] = xmlData.map.name[0];
-  map["slug"] = toSlug(xmlData.map.name[0]);
-  map["id"] = toSlug([source.maintainer, source.repository, xmlData.map.name[0]].join("_"));
+  map["name"] = variant_info.name ? variant_info.name : xmlData.map.name[0];
+  map["slug"] = toSlug(map["name"]);
+  map["id"] = toSlug([source.maintainer, source.repository, map["name"]].join("_"));
   map["proto"] = xmlData.map.$.proto;
   map["version"] = xmlData.map.version[0];
   if (xmlData.map.objective) map["objective"] = xmlData.map.objective[0];
@@ -282,8 +313,8 @@ const parseMap = async (target, source) => {
   if (target.toLowerCase().includes("competitive")) map["tags"].push("tournament");
 
   // include any special tags
-  if (target.toLowerCase().includes("christmas")) map["tags"].push("christmas");
-  if (target.toLowerCase().includes("halloween")) map["tags"].push("halloween");
+  if (target.toLowerCase().includes("christmas") || variant === "christmas") map["tags"].push("christmas");
+  if (target.toLowerCase().includes("halloween") || variant === "halloween") map["tags"].push("halloween");
   if (target.toLowerCase().includes("arcade")) map["tags"].push("arcade");
   // warzone seasonal folders
   if (target.toLowerCase().includes("holiday")) map["tags"].push("christmas");
@@ -409,8 +440,8 @@ const main = async () => {
   const args = require('yargs').argv;
 
   const tmpDir = path.join(__dirname, "..", "tmp");
-  // if (fs.existsSync(tmpDir)) fs.rmSync(tmpDir, { recursive: true });
-  // fs.mkdirSync(tmpDir);
+  if (fs.existsSync(tmpDir)) fs.rmSync(tmpDir, { recursive: true });
+  fs.mkdirSync(tmpDir);
 
   var mapsOutput = [];
 
@@ -419,7 +450,7 @@ const main = async () => {
     const repoDir = path.join(tmpDir, source.maintainer, source.repository);
 
     console.log(`Fetching maps from ${source.maintainer}/${source.repository}`);
-    // await git.clone(source.url, repoDir);
+    await git.clone(source.url, repoDir);
     var foundMaps = await parseRepo(repoDir, source);
     if (foundMaps) mapsOutput = [].concat(mapsOutput, foundMaps);
   };
