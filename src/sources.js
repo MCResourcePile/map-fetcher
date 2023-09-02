@@ -1,10 +1,10 @@
-// use "ambiguous" as the license if the repo isn't uniform
 const SOURCES = [
   {
     "maintainer": "OvercastCommunity",
     "repository": "CommunityMaps",
     "url": "https://github.com/OvercastCommunity/CommunityMaps",
     "branch": "master",
+    "license_scope": "repository",
     "license": "cc-by-sa",
     "includes_url": "https://github.com/OvercastCommunity/PublicMaps/tree/main/includes"
   },
@@ -13,7 +13,7 @@ const SOURCES = [
     "repository": "PublicMaps",
     "url": "https://github.com/OvercastCommunity/PublicMaps",
     "branch": "main",
-    "license": "ambiguous",
+    "license_scope": "map",
     "includes_url": "https://github.com/OvercastCommunity/PublicMaps/tree/main/includes"
   },
   {
@@ -21,7 +21,7 @@ const SOURCES = [
     "repository": "public-competitive",
     "url": "https://github.com/OvercastCommunity/public-competitive",
     "branch": "master",
-    "license": "ambiguous",
+    "license_scope": "map",
     "includes_url": "https://github.com/OvercastCommunity/PublicMaps/tree/main/includes",
     "global_tags": ["tournament"]
   },
@@ -30,6 +30,7 @@ const SOURCES = [
     "repository": "PublicMaps",
     "url": "https://github.com/Warzone/PublicMaps",
     "branch": "main",
+    "license_scope": "repository",
     "license": "cc-by-sa"
   },
   {
@@ -37,21 +38,31 @@ const SOURCES = [
     "repository": "stratus-maps",
     "url": "https://github.com/Xerocoles/stratus-maps",
     "branch": "master",
-    "license": "ambiguous"
+    "license_scope": "map"
   },
   {
     "maintainer": "MCResourcePile",
     "repository": "pgm-maps",
     "url": "https://github.com/MCResourcePile/pgm-maps",
     "branch": "master",
-    "license": "ambiguous"
+    "license_scope": "map"
+  },
+  {
+    "maintainer": "Strangeys",
+    "repository": "MinecraftMaps",
+    "url": "https://github.com/Strangeys/MinecraftMaps",
+    "includes_url": "https://github.com/OvercastCommunity/PublicMaps/tree/main/includes",
+    "branch": "main",
+    "license_scope": "repository",
+    "license": "cc-by-sa"
   }
 
   // {
   //   "maintainer": "mitchts",
   //   "repository": "sample-maps",
-  //   "license": "ambiguous",
+  //   "license_scope": "map",
   //   "url": "https://github.com/mitchts/sample-maps",
+  //   "includes_url": "https://github.com/OvercastCommunity/PublicMaps/tree/main/includes",
   //   "branch": "main"
   // }
 ];
