@@ -185,8 +185,6 @@ const parseMap = async (target, source, variant = "default", variant_info) => {
     mapSource["includes"] = include;
   };
 
-  console.log(xmlData)
-
   const parseConstants = (constantList) => {
     if (constantList) {
       constantList.forEach((constant, i) => {
@@ -204,7 +202,6 @@ const parseMap = async (target, source, variant = "default", variant_info) => {
   };
 
   const insertConstantValues = (node) => {
-    console.log(constants)
     var tmp = JSON.stringify(node);
     tmp = tmp.replace(/\${([\w-_ ]*)}/g, (keyExpr, key) => {
       if (constants.hasOwnProperty(key)) {
