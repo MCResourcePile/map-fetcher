@@ -116,7 +116,7 @@ const parseMap = async (target, source, variant = "default", variant_info) => {
   var mapDir = workingTarget.split(repoSegment)[1].replace("/map.xml", "");
   var mapImageUrl = (source, mapDir) => {
     var variantHasUniqueImage = () => {
-      var imageTestPath = target.replace("map.xml", `${variant_info.world}\\map.png`);
+      var imageTestPath = target.replace("map.xml", `${variant_info.world}/map.png`);
       return fs.existsSync(imageTestPath);
     };
 
