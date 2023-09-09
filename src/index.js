@@ -179,7 +179,7 @@ const parseMap = async (target, source, variant = "default", variant_info) => {
     do {
       initialIncludeCount = xmlData.map.include.length;
       await insertIncludeXml();
-      preprocessXml(xmlData.map);
+      preprocessXml(xmlData.map, variant);
     } while (initialIncludeCount !== xmlData.map.include.length);
 
     mapSource["includes"] = include;
