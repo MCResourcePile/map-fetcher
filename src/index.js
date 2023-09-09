@@ -68,17 +68,20 @@ const parseMap = async (target, source, variant = "default", variant_info) => {
         "name": xmlData.map.name[0],
         "override_name": true,
         "world": false,
+        "internal_id": toSlug([source.maintainer, source.repository, xmlData.map.name[0]].join("_"))
       });
     };
 
     for (var i in xmlData.map.variant) {
       if (xmlData.map.variant[i].$.id !== variant) {
-        variants.push({
+        var newVariant = {
           "id": xmlData.map.variant[i].$.id,
           "name": xmlData.map.variant[i].$.hasOwnProperty("override") && xmlData.map.variant[i].$.override === "true" ? xmlData.map.variant[i]._ : `${xmlData.map.name[0]}: ${xmlData.map.variant[i]._}`,
           "override_name": xmlData.map.variant[i].$.hasOwnProperty("override") ? xmlData.map.variant[i].$.override === "true" : false,
           "world": xmlData.map.variant[i].$.hasOwnProperty("world") ? xmlData.map.variant[i].$.world : false
-        });
+        };
+        newVariant["internal_id"] = toSlug([source.maintainer, source.repository, newVariant["name"]].join("_"));
+        variants.push(newVariant);
       };
     };
   };
