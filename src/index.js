@@ -1,6 +1,7 @@
 const dotenv = require("dotenv").config();
 const fetch = require("node-fetch");
 const xml = require("xml2js");
+const yaml = require("yaml");
 const fs = require("fs");
 const path = require("path");
 const git = require("simple-git").simpleGit();
@@ -8,7 +9,7 @@ const nbt = require("nbt");
 
 const SOURCES = require("./sources").SOURCES;
 
-const parseRepo = async (root, source) => {
+const parseRepo = async (root, source, pools = []) => {
   const IGNORE_DIRS = [".git", ".github", "region"];
   var maps = [];
 
@@ -19,7 +20,7 @@ const parseRepo = async (root, source) => {
     const stat = fs.lstatSync(filePath);
 
     if (stat.isDirectory() && !IGNORE_DIRS.includes(file)) {
-      var nestedMaps = await parseRepo(filePath, source);
+      var nestedMaps = await parseRepo(filePath, source, pools);
       if (nestedMaps) maps = [].concat(maps, nestedMaps);
     } else if (file === "map.xml") {
       var defaultMap = {};
@@ -29,6 +30,13 @@ const parseRepo = async (root, source) => {
         if (fs.existsSync(regionDir)) {
           var regionInfo = parseRegionInfo(regionDir);
           map["regions"] = regionInfo;
+        };
+        if (source.maintainer === "OvercastCommunity") {
+          for (const pool in pools) {
+            if (pools[pool]["maps"].includes(map["name"])) {
+              (map["source"]["pools"] = map["source"]["pools"] || []).push(pools[pool]["display-name"] || pool);
+            };
+          };
         };
         if (map) maps.push(map);
         if (variant === "default") defaultMap = map;
@@ -451,14 +459,29 @@ const main = async () => {
 
     console.log(`Fetching maps from ${source.maintainer}/${source.repository}`);
     await git.clone(source.url, repoDir);
-    var foundMaps = await parseRepo(repoDir, source);
+
+    var pools = [];
+    if (source.maintainer === "OvercastCommunity") {
+      const poolsUrl = "https://raw.githubusercontent.com/OvercastCommunity/MapPools/master/map-pools.yml";
+      const poolsFile = await fetch(poolsUrl, {
+        method: "get",
+        headers: {
+          "User-Agent": "NodeJS"
+        }
+      });
+      const poolsData = await poolsFile.text();
+      pools = yaml.parse(poolsData);
+      pools = pools["pools"];
+    };
+
+    var foundMaps = await parseRepo(repoDir, source, pools);
     if (foundMaps) mapsOutput = [].concat(mapsOutput, foundMaps);
   };
 
   const outputFile = args.output ? args.output : path.join(__dirname, "..", "pgm.json");
   if (fs.existsSync(outputFile)) fs.rmSync(outputFile);
 
-  const templateUrl = "https://raw.githubusercontent.com/MCResourcePile/mcresourcepile.github.io/source/src/data/maps/pgm.json"
+  const templateUrl = "https://raw.githubusercontent.com/MCResourcePile/mcresourcepile.github.io/source/src/data/maps/pgm.json";
   const res = await fetch(templateUrl, {
     method: "get",
     headers: {
