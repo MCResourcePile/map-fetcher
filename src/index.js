@@ -25,11 +25,6 @@ const parseRepo = async (root, source) => {
       var defaultMap = {};
       const processMapDir = async (filePath, source, variant = "default", variant_info = {}) => {
         var map = await parseMap(filePath, source, variant, variant_info);
-        var regionDir = filePath.replace("map.xml", "region");
-        if (fs.existsSync(regionDir)) {
-          var regionInfo = parseRegionInfo(regionDir);
-          map["regions"] = regionInfo;
-        };
         if (map) maps.push(map);
         if (variant === "default") defaultMap = map;
       };
@@ -343,31 +338,6 @@ const parseMap = async (target, source, variant = "default", variant_info) => {
   };
 
   return map;
-}
-
-const parseRegionInfo = (regionDir) => {
-  var regions = {
-    min_x: 0,
-    min_z: 0,
-    max_x: 0,
-    max_z: 0
-  };
-
-  const files = fs.readdirSync(regionDir);
-  files.forEach((file) => {
-    var [regionSegmentX, regionSegmentZ] = file.split(".").slice(1, 3).map(v => parseInt(v));
-    regions["min_x"] = regionSegmentX < regions["min_x"] ? regionSegmentX : regions["min_x"];
-    regions["min_z"] = regionSegmentZ < regions["min_z"] ? regionSegmentZ : regions["min_z"];
-    regions["max_x"] = regionSegmentX > regions["max_x"] ? regionSegmentX : regions["max_x"];
-    regions["max_z"] = regionSegmentZ > regions["max_z"] ? regionSegmentZ : regions["max_z"];
-  });
-
-  regions["min_x"] *= 32;
-  regions["min_z"] *= 32;
-  regions["max_x"] = (regions["max_x"] + 1) * 32;
-  regions["max_z"] = (regions["max_z"] + 1) * 32;
-
-  return regions;
 }
 
 const determineMapLicense = (target, source) => {
