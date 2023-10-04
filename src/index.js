@@ -380,7 +380,7 @@ const determineMapLicense = (target, source) => {
     },
     {
       license: "copr-xerocoles",
-      keywords: ["Xerocoles"]
+      keywords: ["Xerocoles", "Xerorca"]
     }
   ];
 
@@ -415,20 +415,38 @@ const getRawUrl = (url) => {
 }
 
 const main = async () => {
-  const args = require('yargs').argv;
+  const args = require("yargs")(process.argv.slice(2))
+    .option("source", {
+      alias: "s",
+      describe: "Source/template file path"
+    })
+    .option("dry", {
+      alias: "d",
+      describe: "Dry run; don't redownload temp map files",
+      type: "boolean"
+    })
+    .demandOption(["source"])
+    .help()
+    .argv;
+
+  var templateData = JSON.parse(fs.readFileSync(args.source, "utf8"));
 
   const tmpDir = path.join(__dirname, "..", "tmp");
-  if (fs.existsSync(tmpDir)) fs.rmSync(tmpDir, { recursive: true });
-  fs.mkdirSync(tmpDir);
+  if (!args.dry) {
+    if (fs.existsSync(tmpDir)) fs.rmSync(tmpDir, { recursive: true });
+    fs.mkdirSync(tmpDir);
+  }
 
   var mapsOutput = [];
 
-  for (var i = 0; i < SOURCES.length; i++) {
-    const source = SOURCES[i];
+  for (var i = 0; i < templateData.settings.maps.sources.length; i++) {
+    const source = templateData.settings.maps.sources[i];
     const repoDir = path.join(tmpDir, source.maintainer, source.repository);
 
     console.log(`Fetching maps from ${source.maintainer}/${source.repository}`);
-    await git.clone(source.url, repoDir);
+    if (!args.dry) {
+      await git.clone(source.url, repoDir);
+    }
 
     var pools = [];
     if (source.maintainer === "OvercastCommunity") {
@@ -448,21 +466,11 @@ const main = async () => {
     if (foundMaps) mapsOutput = [].concat(mapsOutput, foundMaps);
   };
 
-  const outputFile = args.output ? args.output : path.join(__dirname, "..", "pgm.json");
+  const outputFile = args.output ? args.output : path.join(__dirname, "..", "output.json");
   if (fs.existsSync(outputFile)) fs.rmSync(outputFile);
 
-  const templateUrl = "https://raw.githubusercontent.com/MCResourcePile/mcresourcepile.github.io/source/src/data/maps/pgm.json";
-  const res = await fetch(templateUrl, {
-    method: "get",
-    headers: {
-      "User-Agent": "NodeJS"
-    }
-  });
-  const data = await res.text();
-  var jsonData = JSON.parse(data);
-  jsonData.data.maps = [...new Set(mapsOutput)];
-
-  fs.writeFile(outputFile, JSON.stringify(jsonData, null, 4), (err) => {
+  templateData.data.maps = [...new Set(mapsOutput)];
+  fs.writeFile(args.source, JSON.stringify(templateData, null, 4), (err) => {
     if (err) return console.log(err);
   });
 };
