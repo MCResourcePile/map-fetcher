@@ -7,8 +7,6 @@ const path = require("path");
 const git = require("simple-git").simpleGit();
 const nbt = require("nbt");
 
-const SOURCES = require("./sources").SOURCES;
-
 const parseRepo = async (root, source, pools = []) => {
   const IGNORE_DIRS = [".git", ".github", "region"];
   var maps = [];
