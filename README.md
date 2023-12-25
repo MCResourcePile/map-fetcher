@@ -5,20 +5,22 @@ This tool fetches specific Git repositories that contain [PGM maps](https://pgm.
 
 ### Running
 
-`node src/index.js --output="path\to\output.json"`
+`node src/index.js --source="path\to\source.json"`
+
+Note: your source file is also your output file.
 
 ### Adding repositories
 
-Repositories are stored in [src/sources.js](https://github.com/MCResourcePile/map-fetcher/blob/main/src/sources.js). If you actively maintain a Git repository with PGM maps and would like them included on the ResourcePile website please submit a pull request adding your repository details to this file.
+Repositories are stored in the respective webpage data file, such as [pgm.json in `settings.maps.sources`](https://raw.githubusercontent.com/MCResourcePile/mcresourcepile.github.io/source/src/data/maps/pgm.json).
 
 
 | Option            | Description                                                                         |
 |-------------------|-------------------------------------------------------------------------------------|
 | `"maintainer"`    | The username of the maintainer.                                                     |
 | `"repository"`    | The name of the repository.                                                         |
+| `"branch"`        | The main branch.                                                                    |
 | `"url"`           | Full URL to the Git host frontend of the repository.                                |
 | `"includes_url"`  | Full URL to the Git host frontend to the XML includes folder.                       |
-| `"branch"`        | The main branch.                                                                    |
 | `"license_scope"` | Specify whether maps are licensed as a `repository` or individually per `map`.      |
 | `"license"`       | The repository license. Only used if license scope is set to `repository`.          |
 | `"global_tags"`   | An array of tags to apply to all maps in the repository. Optional.                  |
@@ -27,10 +29,10 @@ Repositories are stored in [src/sources.js](https://github.com/MCResourcePile/ma
  {
    "maintainer": "OvercastCommunity",
    "repository": "public-competitive",
-   "url": "https://github.com/OvercastCommunity/public-competitive",
    "branch": "master",
-   "license_scope": "map",
+   "url": "https://github.com/OvercastCommunity/public-competitive",
    "includes_url": "https://github.com/OvercastCommunity/PublicMaps/tree/main/includes",
+   "license_scope": "map",
    "global_tags": ["tournament"]
  }
 ```
@@ -64,6 +66,7 @@ Repositories are stored in [src/sources.js](https://github.com/MCResourcePile/ma
         }
     ],
     "tags": [
+        "2teams",
         "core",
         "blitz"
     ],
@@ -80,7 +83,19 @@ Repositories are stored in [src/sources.js](https://github.com/MCResourcePile/ma
             "files": [
                 "warwars"
             ]
+        },
+        "pools": [
+            "sample-pool"
+        ]
+    },
+    "variants": [
+        {
+            "id": "sticky_situation",
+            "name": "War Wars: Sticky Situation",
+            "override_name": true,
+            "world": true,
+            "internal_id": "overcastnetwork_maps_war_wars_sticky_situation"
         }
-    }
+    ]
 }
 ```

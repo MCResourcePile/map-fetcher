@@ -292,6 +292,7 @@ const parseMap = async (target, source, variant = "default", variant_info) => {
 
   map["tags"] = [];
   if (xmlData.map.teams && xmlData.map.teams[0].team) map["tags"].push(`${xmlData.map.teams[0].team.length}teams`);
+  if (map["teams"].length === 2 && ["attacker", "attackers", "defender", "defenders"].includes(map["teams"][0]["name"].toLowerCase())) map["tags"].push("ad");
   if (xmlData.map.players) map["tags"].push("ffa");
   if (xmlData.map.cores) map["tags"].push("core");
   if (xmlData.map.destroyables) map["tags"].push("monument");
