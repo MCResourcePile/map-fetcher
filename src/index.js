@@ -272,6 +272,7 @@ const parseMap = async (target, source, variant = "default", variant_info) => {
   };
 
   map["teams"] = [];
+  map["player_capacity"] = 0;
   if (xmlData.map.teams) {
     for (var i in xmlData.map.teams[0].team) {
       var team = xmlData.map.teams[0].team[i];
@@ -280,6 +281,7 @@ const parseMap = async (target, source, variant = "default", variant_info) => {
         color: toSlug(team.$.color),
         size: team.$.max
       });
+      map["player_capacity"] += team.$.max;
     };
   };
   if (xmlData.map.players) {
@@ -288,6 +290,7 @@ const parseMap = async (target, source, variant = "default", variant_info) => {
       color: "yellow",
       size: xmlData.map.players[0].$.max
     });
+    map["player_capacity"] += xmlData.map.players[0].$.max;
   };
 
   map["tags"] = [];
