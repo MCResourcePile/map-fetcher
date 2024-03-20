@@ -281,7 +281,7 @@ const parseMap = async (target, source, variant = "default", variant_info) => {
         color: toSlug(team.$.color),
         size: team.$.max
       });
-      map["player_capacity"] += team.$.max;
+      map["player_capacity"] += parseInt(team.$.max);
     };
   };
   if (xmlData.map.players) {
@@ -290,7 +290,7 @@ const parseMap = async (target, source, variant = "default", variant_info) => {
       color: "yellow",
       size: xmlData.map.players[0].$.max
     });
-    map["player_capacity"] += xmlData.map.players[0].$.max;
+    map["player_capacity"] += parseInt(xmlData.map.players[0].$.max);
   };
 
   map["tags"] = [];
