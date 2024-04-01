@@ -93,6 +93,7 @@ const parseMap = async (target, source, variant = "default", variant_info) => {
         for (var i in value) {
           if (!value[i].$) continue;
           var variants = value[i].$.variant.split(",");
+          variants = variants.map(s => s.trim());
           if (key === "if" && variants.includes(variant) || key === "unless" && !variants.includes(variant)) {
             delete value[i]["$"];
             for (var [innerKey, innerValue] of Object.entries(value[i])) {
