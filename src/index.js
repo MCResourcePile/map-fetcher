@@ -91,9 +91,65 @@ const parseMap = async (target, source, variant = "default", variant_info) => {
     for (var [key, value] of Object.entries(node)) {
       if (["if", "unless"].includes(key)) {
         for (var i in value) {
-          if (!value[i].$) continue;
-          var variants = value[i].$.variant.split(",");
-          if (key === "if" && variants.includes(variant) || key === "unless" && !variants.includes(variant)) {
+          var insertBlock = false;
+          var condition = value[i];
+          if (!condition.$) continue;
+
+          if (condition.$.hasOwnProperty("variant")) {
+            insertBlock = variants.includes(variant);
+          };
+
+          if (condition.$.hasOwnProperty("has-variant")) {
+            insertBlock = variants.some(v => v.id === condition.$.variant);
+          };
+
+          if (condition.$.hasOwnProperty("constant")) {
+            var constant = condition.$.constant;
+            var constantComparison = condition.$.hasOwnProperty("constant-comparison") ? condition.$["constant-comparison"].replace(/ /g,"_") : "defined_value";
+            var constantComparisonValue = condition.$.hasOwnProperty("constant-value") ? condition.$["constant-value"] : undefined;
+            var isDefined = constants.hasOwnProperty(constant);
+
+            switch (constantComparison) {
+              case "undefined":
+                insertBlock = !isDefined;
+                break;
+              case "defined":
+                insertBlock = isDefined;
+                break;
+              case "defined_delete":
+                insertBlock = isDefined && constants[constant] == undefined;
+                break;
+              case "defined_value":
+                insertBlock = isDefined && constants[constant] != undefined;
+                break;
+              case "equals":
+                insertBlock = constants[constant] === constantComparisonValue;
+                break;
+              case "contains":
+                insertBlock = constants[constant].includes(constantComparisonValue);
+                break;
+              case "regex":
+                var value = constants[constant] || "";
+                var matcher = value.match(constantComparisonValue);
+
+                insertBlock = matcher != null;
+                break;
+              case "range":
+                // https://github.com/PGMDev/PGM/blob/dev/util/src/main/java/tc/oc/pgm/util/xml/XMLUtils.java#L405
+                const RANGE_DOTTED = /\s*(-oo|-?\d*\.?\d+)?\s*\.{2}\s*(oo|-?\d*\.?\d+)?\s*/;
+                var matcher = constantComparisonValue.match(RANGE_DOTTED);
+                var lowerBound = (matcher[1] == undefined || matcher[1] === "-oo") ? Number.NEGATIVE_INFINITY : parseInt(matcher[1]);
+                var upperBound = (matcher[2] == undefined || matcher[2] === "oo") ? Number.POSITIVE_INFINITY : parseInt(matcher[2]);
+                var constantInt = parseInt(constants[constant]);
+
+                insertBlock = constantInt > lowerBound && constantInt < upperBound;
+                break;
+              default:
+                console.log(`Unexpected constant conditional: ${constantComparison}`);
+            };
+          };
+
+          if (key === "if" && insertBlock || key === "unless" && !insertBlock) {
             delete value[i]["$"];
             for (var [innerKey, innerValue] of Object.entries(value[i])) {
               if (node.hasOwnProperty(innerKey)) {
@@ -189,21 +245,25 @@ const parseMap = async (target, source, variant = "default", variant_info) => {
     mapSource["includes"] = include;
   };
 
-  const parseConstants = (constantList) => {
+  const parseConstants = (constantList, fallback = false) => {
     if (constantList) {
       constantList.forEach((constant, i) => {
-        constants[constant.$.id] = constant._
+        if (fallback && constants.hasOwnProperty(constant.$.id)) { return };
+
+        constants[constant.$.id] = constant._;
       });
     };
   };
   if (xmlData.map.constants) {
     xmlData.map.constants.forEach((constants, i) => {
-      parseConstants(constants.constant);
+      var fallback = (constants.hasOwnProperty("$") && constants.$.hasOwnProperty("fallback")) ? constants.$.fallback.toLowerCase() === "true" : false;
+      parseConstants(constants.constant, fallback);
     });
   };
   if (xmlData.map.constant) {
     parseConstants(xmlData.map.constant);
   };
+  preprocessXml(xmlData.map, variant);
 
   const insertConstantValues = (node) => {
     var tmp = JSON.stringify(node);
