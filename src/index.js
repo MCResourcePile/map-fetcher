@@ -96,7 +96,9 @@ const parseMap = async (target, source, variant = "default", variant_info) => {
           if (!condition.$) continue;
 
           if (condition.$.hasOwnProperty("variant")) {
-            insertBlock = variants.includes(variant);
+            var variantValues = condition.$.variant.split(",");
+            variantValues = variantValues.map(s => s.trim());
+            insertBlock = variantValues.includes(variant);
           };
 
           if (condition.$.hasOwnProperty("has-variant")) {
