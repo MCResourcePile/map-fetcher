@@ -514,6 +514,18 @@ const main = async () => {
 
     var pools = [];
     if (source.maintainer === "OvercastCommunity") {
+      const getNestedPoolMaps = (subpool) => {
+        if (subpool.constructor === Object) {
+          return subpool["maps"];
+        };
+
+        if (subpool.constructor === Array) {
+          return subpool;
+        };
+
+        return [];
+      };
+
       const poolsUrl = "https://raw.githubusercontent.com/OvercastCommunity/MapPools/master/map-pools.yml";
       const poolsFile = await fetch(poolsUrl, {
         method: "get",
@@ -524,6 +536,16 @@ const main = async () => {
       const poolsData = await poolsFile.text();
       pools = yaml.parse(poolsData);
       pools = pools["pools"];
+
+      for (const pool in pools) {
+        if (pools[pool]["maps"] && pools[pool]["maps"].constructor === Object) {
+          var maps = [];
+          for (const subpool in pools[pool]["maps"]) {
+            maps = [...maps, ...getNestedPoolMaps(pools[pool]["maps"][subpool])];
+          };
+          pools[pool]["maps"] = maps;
+        };
+      };
     };
 
     var foundMaps = await parseRepo(repoDir, source, pools);
