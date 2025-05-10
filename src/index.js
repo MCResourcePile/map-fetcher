@@ -62,15 +62,33 @@ const parseMap = async (target, source, variant = "default", variant_info) => {
 
   console.log(`Parsing map data from ${target} (${variant})`);
 
+  const getSupportedVersions = (node) => {
+      var versions = {};
+      var min = node.hasOwnProperty("min-server-version") ? node["min-server-version"] : source?.min_server_version;
+      var max = node.hasOwnProperty("max-server-version") ? node["max-server-version"] : undefined;
+
+      if (min) versions["min"] = min;
+      if (max) versions["max"] = max;
+
+      if (Object.keys(versions).length === 0)
+        return false;
+
+      return versions;
+  }
+
   if (xmlData.map.variant) {
     if (variant !== "default") {
-      variants.push({
+      var defaultVariant = {
         "id": "default",
         "name": xmlData.map.name[0],
         "override_name": true,
         "world": false,
         "internal_id": toSlug([source.maintainer, source.repository, xmlData.map.name[0]].join("_"))
-      });
+      };
+      if (Object.keys(getSupportedVersions(xmlData.map.$)).length > 0) {
+        defaultVariant["server_version"] = getSupportedVersions(xmlData.map.$);
+      };
+      variants.push(defaultVariant);
     };
 
     for (var i in xmlData.map.variant) {
@@ -82,6 +100,9 @@ const parseMap = async (target, source, variant = "default", variant_info) => {
           "world": xmlData.map.variant[i].$.hasOwnProperty("world") ? xmlData.map.variant[i].$.world : false
         };
         newVariant["internal_id"] = toSlug([source.maintainer, source.repository, newVariant["name"]].join("_"));
+        if (Object.keys(getSupportedVersions(xmlData.map.variant[i].$)).length > 0) {
+          newVariant["server_version"] = getSupportedVersions(xmlData.map.variant[i].$);
+        };
         variants.push(newVariant);
       };
     };
@@ -287,6 +308,13 @@ const parseMap = async (target, source, variant = "default", variant_info) => {
   if (xmlData.map.created) map["created"] = xmlData.map.created[0];
   map["phase"] = xmlData.map.phase ? xmlData.map.phase[0] : "production";
   map["edition"] = xmlData.map.edition ? xmlData.map.edition[0] : "standard";
+
+  if (variant == "default" && getSupportedVersions(xmlData.map.$)) {
+    map["server_version"] = getSupportedVersions(xmlData.map.$);
+  };
+  if (variant != "default" && variant_info.server_version) {
+    map["server_version"] = variant_info.server_version;
+  };
 
   map["authors"] = [];
   for (var i in xmlData.map.authors[0].author) {
