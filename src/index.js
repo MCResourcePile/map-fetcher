@@ -100,6 +100,9 @@ const parseMap = async (target, source, variant = "default", variant_info) => {
           "world": xmlData.map.variant[i].$.hasOwnProperty("world") ? xmlData.map.variant[i].$.world : false
         };
         newVariant["internal_id"] = toSlug([source.maintainer, source.repository, newVariant["name"]].join("_"));
+        if (Object.keys(getSupportedVersions(xmlData.map.$)).length > 0) {
+          newVariant["server_version"] = getSupportedVersions(xmlData.map.$);
+        };
         if (Object.keys(getSupportedVersions(xmlData.map.variant[i].$)).length > 0) {
           newVariant["server_version"] = getSupportedVersions(xmlData.map.variant[i].$);
         };
