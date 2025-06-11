@@ -223,11 +223,11 @@ const parseMap = async (target, source, variant = "default", variant_info) => {
 
   const insertIncludeXml = async () => {
     for (var i = 0; i < xmlData.map.include.length; i++) {
-      if (xmlData.map.include[i].$.id && !include.files.includes(xmlData.map.include[i].$.id)) {
+      if (xmlData.map.include[i].$.id && !includes.files.includes(xmlData.map.include[i].$.id)) {
         var includeReference = xmlData.map.include[i].$.id;
-        include["files"].push(includeReference);
+        includes["files"].push(includeReference);
 
-        if (include["root"] !== false) {
+        if (includes["root"] !== false) {
           console.log("Fetching include data from", getRawUrl(`${source.includes_url}/${includeReference}.xml`));
           var res = await fetch(getRawUrl(`${source.includes_url}/${includeReference}.xml`), {
             method: "get",
@@ -256,19 +256,31 @@ const parseMap = async (target, source, variant = "default", variant_info) => {
     };
   };
 
+  var includes = {
+    root: source.includes_url || false,
+    files: []
+  };
+
   if (xmlData.map.include) {
-    var include = {
-      root: source.includes_url || false,
-      files: []
-    };
     var initialIncludeCount = 0;
     do {
       initialIncludeCount = xmlData.map.include.length;
       await insertIncludeXml();
       preprocessXml(xmlData.map, variant);
     } while (initialIncludeCount !== xmlData.map.include.length);
+  };
 
-    mapSource["includes"] = include;
+  const usesSoundKeysInclude = (node) => {
+    var string = JSON.stringify(node);
+    var pattern = /"key":"\${(entity|block)\..+}"/gi;
+    return pattern.test(string);
+  };
+  if (usesSoundKeysInclude(xmlData.map)) {
+    includes["files"].push("sound-keys");
+  };
+
+  if (includes["files"].length > 0) {
+    mapSource["includes"] = includes;
   };
 
   const parseConstants = (constantList, fallback = false) => {
@@ -293,7 +305,8 @@ const parseMap = async (target, source, variant = "default", variant_info) => {
 
   const insertConstantValues = (node) => {
     var tmp = JSON.stringify(node);
-    tmp = tmp.replace(/\${([\w-_ ]*)}/g, (keyExpr, key) => {
+    var pattern = /\${([\w-_ ]*)}/g;
+    tmp = tmp.replace(pattern, (keyExpr, key) => {
       if (constants.hasOwnProperty(key)) {
         return constants[key];
       };
