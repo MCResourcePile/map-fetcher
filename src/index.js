@@ -211,12 +211,14 @@ const parseMap = async (target, source, variant = "default", variant_info) => {
     };
   };
 
+  var mapLicense = determineMapLicense(target, source);
+
   mapSource = {
     maintainer: source.maintainer,
     repository: source.repository,
     path: `${mapDir}${variant_info.world ? "/" + variant_info.world : ""}`,
-    license: source.license_scope === "repository" ? source.license : determineMapLicense(target, source),
-    license_scope: source.license_scope,
+    license: mapLicense.license,
+    license_scope: mapLicense.scope,
     github_url: source.url + "/tree/" + source.branch + "/" + mapDir,
     image_url: mapImageUrl(source, mapDir)
   };
@@ -457,58 +459,85 @@ const parseMap = async (target, source, variant = "default", variant_info) => {
 }
 
 const determineMapLicense = (target, source) => {
-  const licenseTarget = target.replace("map.xml", "LICENSE.txt");
-  if (!fs.existsSync(licenseTarget)) return "not-found";
-  const data = fs.readFileSync(licenseTarget, 'utf8');
-
-  const licenseTypes = [
-    {
-      license: "cc-by",
-      keywords: ["Creative Commons Attribution ", "/by/"]
-    },
-    {
-      license: "cc-by-sa",
-      keywords: ["Creative Commons Attribution-ShareAlike ", "/by-sa/"]
-    },
-    {
-      license: "cc-by-nd",
-      keywords: ["Creative Commons Attribution-NoDerivatives ", "/by-nd/"]
-    },
-    {
-      license: "cc-by-nc",
-      keywords: ["Creative Commons Attribution-NonCommercial ", "/by-nc/"]
-    },
-    {
-      license: "cc-by-nc-sa",
-      keywords: ["Creative Commons Attribution-NonCommercial-ShareAlike ", "/by-nc-sa/"]
-    },
-    {
-      license: "cc-by-nc-nd",
-      keywords: ["Creative Commons Attribution-NonCommercial-NoDerivs ", "/by-nc-nd/"]
-    },
-    {
-      license: "copr-xerocoles",
-      keywords: ["Xerocoles", "Xerorca"]
-    }
-  ];
-
+  const scope = source.license_scope;
   var license = "unresolved";
-  for (var i = 0; i < licenseTypes.length; i++) {
-    for (var j = 0; j < licenseTypes[i].keywords.length; j++) {
-      if (!data.includes(licenseTypes[i].keywords[j])) continue;
+  var referenced_scope = "unresolved";
 
-      license = licenseTypes[i].license;
-      break;
+  const resolveLicenseTxt = (target) => {
+    const licenseTarget = target.replace("map.xml", "LICENSE.txt");
+    if (!fs.existsSync(licenseTarget)) return "not-found";
+    const data = fs.readFileSync(licenseTarget, 'utf8');
+
+    const licenseTypes = [
+      {
+        license: "cc-by",
+        keywords: ["Creative Commons Attribution ", "/by/"]
+      },
+      {
+        license: "cc-by-sa",
+        keywords: ["Creative Commons Attribution-ShareAlike ", "/by-sa/"]
+      },
+      {
+        license: "cc-by-nd",
+        keywords: ["Creative Commons Attribution-NoDerivatives ", "/by-nd/"]
+      },
+      {
+        license: "cc-by-nc",
+        keywords: ["Creative Commons Attribution-NonCommercial ", "/by-nc/"]
+      },
+      {
+        license: "cc-by-nc-sa",
+        keywords: ["Creative Commons Attribution-NonCommercial-ShareAlike ", "/by-nc-sa/"]
+      },
+      {
+        license: "cc-by-nc-nd",
+        keywords: ["Creative Commons Attribution-NonCommercial-NoDerivs ", "/by-nc-nd/"]
+      },
+      {
+        license: "copr-xerocoles",
+        keywords: ["Xerocoles", "Xerorca"]
+      }
+    ];
+
+    for (var i = 0; i < licenseTypes.length; i++) {
+      for (var j = 0; j < licenseTypes[i].keywords.length; j++) {
+        if (!data.includes(licenseTypes[i].keywords[j])) continue;
+
+        return licenseTypes[i].license;
+      };
     };
-    if (license !== "unresolved") break;
+
+    return "unresolved";
   };
 
-  return license;
+  switch (scope) {
+    case "repository":
+      license = source.license;
+      referenced_scope = "repository";
+      break;
+    case "map":
+      license = resolveLicenseTxt(target);
+      referenced_scope = "map";
+      break;
+    case "mixed":
+      license = resolveLicenseTxt(target);
+      referenced_scope = "map";
+
+      if (license === "not-found") {
+        license = source.license;
+        referenced_scope = "repository";
+      }
+      break;
+    default:
+      license = "not-found";
+  };
+
+  return { license: license, scope: referenced_scope };
 };
 
 const toSlug = (string) => {
   return string.toLowerCase().replace(/[^\w ]+/g, "").replace(/ +/g, "_");
-}
+};
 
 const getRawUrl = (url) => {
   if (url.includes("github.com")) {
@@ -520,7 +549,7 @@ const getRawUrl = (url) => {
   };
 
   return url;
-}
+};
 
 const main = async () => {
   const args = require("yargs")(process.argv.slice(2))
