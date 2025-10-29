@@ -92,6 +92,12 @@ const parseMap = async (target, source, variant = "default", variant_info) => {
     };
 
     for (var i in xmlData.map.variant) {
+      if (xmlData.map.variant[i].$.id === "default") {
+        if (variant === "default")
+          variant_info["world"] = xmlData.map.variant[i].$.hasOwnProperty("world") ? xmlData.map.variant[i].$.world : false;
+        continue;
+      }
+
       if (xmlData.map.variant[i].$.id !== variant) {
         var newVariant = {
           "id": xmlData.map.variant[i].$.id,
