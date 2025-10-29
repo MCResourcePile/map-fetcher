@@ -183,6 +183,7 @@ const parseMap = async (target, source, variant = "default", variant_info) => {
 
           if (key === "if" && insertBlock || key === "unless" && !insertBlock) {
             delete value[i]["$"];
+            preprocessXml(value[i], variant);
             for (var [innerKey, innerValue] of Object.entries(value[i])) {
               if (node.hasOwnProperty(innerKey)) {
                 node[innerKey] = node[innerKey].concat(innerValue);
