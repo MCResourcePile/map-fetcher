@@ -232,9 +232,10 @@ const parseMap = async (target, source, variant = "default", variant_info) => {
 
   const insertIncludeXml = async () => {
     for (var i = 0; i < xmlData.map.include.length; i++) {
-      if (xmlData.map.include[i].$.id && !includes.files.includes(xmlData.map.include[i].$.id)) {
-        var includeReference = xmlData.map.include[i].$.id;
-        includes["files"].push(includeReference);
+      var includeReference = xmlData.map.include[i].$.id ? xmlData.map.include[i].$.id : xmlData.map.include[i].$.src;
+      if (includeReference) {
+        includeReference = includeReference.replace(/(\.\.\/|\.xml)/g, "");
+        if (includes.files.includes(xmlData.map.include[i].$.id)) continue;
 
         if (includes["root"] !== false) {
           console.log("Fetching include data from", getRawUrl(`${source.includes_url}/${includeReference}.xml`));
@@ -245,6 +246,7 @@ const parseMap = async (target, source, variant = "default", variant_info) => {
             }
           });
           if (res.ok) {
+            includes["files"].push(includeReference);
             const includeFileData = await res.text();
             xml.parseString(includeFileData, async (includeFileErr, includeFileResult) => {
               for (var [includeKey, includeValue] of Object.entries(includeFileResult.map)) {
