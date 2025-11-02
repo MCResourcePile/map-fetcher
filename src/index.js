@@ -233,21 +233,32 @@ const parseMap = async (target, source, variant = "default", variant_info) => {
   const insertIncludeXml = async () => {
     for (var i = 0; i < xmlData.map.include.length; i++) {
       var includeReference = xmlData.map.include[i].$.id ? xmlData.map.include[i].$.id : xmlData.map.include[i].$.src;
+      var includeFileData;
       if (includeReference) {
         includeReference = includeReference.replace(/(\.\.\/|\.xml)/g, "");
         if (includes.files.includes(xmlData.map.include[i].$.id)) continue;
 
         if (includes["root"] !== false) {
-          console.log("Fetching include data from", getRawUrl(`${source.includes_url}/${includeReference}.xml`));
-          var res = await fetch(getRawUrl(`${source.includes_url}/${includeReference}.xml`), {
-            method: "get",
-            headers: {
-              "User-Agent": "NodeJS"
-            }
-          });
-          if (res.ok) {
+          var localIncludeLocation = path.join(source.includes_store, `${includeReference}.xml`);
+          if (fs.existsSync(localIncludeLocation)) {
+            console.log("Reading local include data from", localIncludeLocation);
+            includeFileData = fs.readFileSync(localIncludeLocation, "utf8");
+          } else {
+            console.log("Downloading include data from", getRawUrl(`${source.includes_url}/${includeReference}.xml`));
+            var res = await fetch(getRawUrl(`${source.includes_url}/${includeReference}.xml`), {
+              method: "get",
+              headers: {
+                "User-Agent": "NodeJS"
+              }
+            });
+            if (!res.ok) continue;
+            includeFileData = await res.text();
+            fs.writeFileSync(localIncludeLocation, includeFileData, (err) => {
+              if (err) return console.log(err);
+            });
+          };
+          if (includeFileData) {
             includes["files"].push(includeReference);
-            const includeFileData = await res.text();
             xml.parseString(includeFileData, async (includeFileErr, includeFileResult) => {
               for (var [includeKey, includeValue] of Object.entries(includeFileResult.map)) {
                 if (includeKey === "$") {
@@ -446,7 +457,7 @@ const parseMap = async (target, source, variant = "default", variant_info) => {
     mapSource["includes"]["files"].forEach((includeReference) => {
       // special OCC gamemodes that use standard include files
       if (["4-team-bedwars", "8-team-bedwars"].includes(includeReference)) map["tags"].push("bedwars");
-      if ("bridge" === includeReference) map["tags"].push("bridge");
+      if (["bridge", "bridge-swap"].includes(includeReference)) map["tags"].push("bridge");
       if ("infection" === includeReference) map["tags"].push("infection");
       if ("gs" === includeReference) map["tags"].push("gs");
     });
@@ -586,12 +597,19 @@ const main = async () => {
   var mapsOutput = [];
 
   for (var i = 0; i < templateData.settings.maps.sources.length; i++) {
-    const source = templateData.settings.maps.sources[i];
+    const source = structuredClone(templateData.settings.maps.sources[i]);
     const repoDir = path.join(tmpDir, source.maintainer, source.repository);
 
     console.log(`Fetching maps from ${source.maintainer}/${source.repository}`);
     if (!args.dry) {
       await git.clone(source.url, repoDir);
+    }
+
+    if (source.includes_url) {
+      const includesDir = path.join(tmpDir, source.includes_url.replaceAll(/\.|:|\//g, "_"));
+      if (!fs.existsSync(includesDir))
+        fs.mkdirSync(includesDir);
+      source.includes_store = includesDir;
     }
 
     var pools = [];
