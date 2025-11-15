@@ -1,4 +1,3 @@
-const dotenv = require("dotenv").config();
 const fetch = require("node-fetch");
 const xml = require("xml2js");
 const yaml = require("yaml");
@@ -346,6 +345,7 @@ const parseMap = async (target, source, variant = "default", variant_info) => {
   if (xmlData.map.created) map["created"] = xmlData.map.created[0];
   map["phase"] = xmlData.map.phase ? xmlData.map.phase[0] : "production";
   map["edition"] = xmlData.map.edition ? xmlData.map.edition[0] : "standard";
+  map["variant"] = variant;
 
   if (variant == "default" && getSupportedVersions(xmlData.map.$)) {
     map["server_version"] = getSupportedVersions(xmlData.map.$);
