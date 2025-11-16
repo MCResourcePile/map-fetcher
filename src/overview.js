@@ -6,7 +6,7 @@ const fs = require("fs");
 const path = require("path");
 const git = require("simple-git").simpleGit();
 
-const VARIANT_REGEX = /[^\\]+(?=\\[^\\]+$)/;
+const VARIANT_REGEX = /[^\\/]+(?=[\\/][^\\/]+$)/;
 const TMP_REGEX = /^.*?\\tmp/;
 const IGNORE_DIRS = [".git", ".github", "region"];
 
