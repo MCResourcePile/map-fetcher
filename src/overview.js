@@ -185,7 +185,7 @@ const main = async () => {
     fs.mkdirSync(tmpDir);
   }
 
-  const jmcVersion = process.env.jmc2ObjVersion;
+  const jmcVersion = process.env.JMC2OBJVERSION;
   const jmcJar = await fetch(`https://github.com/jmc2obj/j-mc-2-obj/releases/download/${jmcVersion}/jMc2Obj-${jmcVersion}.jar`);
   if (!jmcJar.ok) {
     throw new Error(`Failed to download: ${jmcJar.statusText}`);
