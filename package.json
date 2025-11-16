@@ -14,7 +14,8 @@
   },
   "homepage": "https://github.com/MCResourcePile/map-fetcher#readme",
   "dependencies": {
-    "dotenv": "^16.0.3",
+    "child_process": "^1.0.2",
+    "dotenv": "^17.2.3",
     "nbt": "^0.8.1",
     "node-fetch": "^2.6.7",
     "simple-git": "^3.16.0",
