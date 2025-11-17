@@ -222,7 +222,8 @@ const parseMap = async (target, source, variant = "default", variant_info) => {
   mapSource = {
     maintainer: source.maintainer,
     repository: source.repository,
-    path: `${mapDir}${variant_info.world ? "/" + variant_info.world : ""}`,
+    path: mapDir,
+    world_path: variant_info.world ? "/" + variant_info.world : "",
     license: mapLicense.license,
     license_scope: mapLicense.scope,
     github_url: source.url + "/tree/" + source.branch + "/" + mapDir,
