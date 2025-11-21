@@ -39,22 +39,25 @@ const parseMap = async (target, source, output) => {
   const repoSegment = `/${source.maintainer}/${source.repository}/`;
   const mapPath = workingTarget.split(repoSegment)[1].replace("/map.xml", "");
   const folderPath = workingTarget.match(/(.+)\/map\.xml$/)[1];
-  const outputDir = path.join(output, source.maintainer, source.repository, mapPath);
-  const versionFile = path.join(outputDir, "version");
-  const version = xmlData.map.version[0];
+  const save = path.join(output, "objects", source.maintainer, source.repository, mapPath);
+  const versionFile = path.join(save, "version");
+  const version = xmlData.map.version ? xmlData.map.version[0] : "1.0.0";
 
   if (fs.existsSync(versionFile)) {
-    const savedVersion = fs.readFileSync(versionFile);
-    if (version === savedVersion) return; // skip if version already generated
+    const savedVersion = fs.readFileSync(versionFile, "utf8");
+    if (version === savedVersion) {
+      console.log(`Skipping as saved version matches current version (${savedVersion})`);
+      return;
+    }
   } else {
-    fs.mkdirSync(outputDir, { recursive: true });
+    fs.mkdirSync(save, { recursive: true });
   }
 
-  await locateWorlds(folderPath, outputDir, 0);
+  await locateWorlds(folderPath, save, output, 0);
   fs.writeFileSync(versionFile, version);
 }
 
-const locateWorlds = async (currentPath, output, depth) => {
+const locateWorlds = async (currentPath, save, root, depth) => {
   const files = fs.readdirSync(currentPath);
   for (var i = 0; i < files.length; i++) {
     const file = files[i];
@@ -62,14 +65,14 @@ const locateWorlds = async (currentPath, output, depth) => {
     const stat = fs.lstatSync(filePath);
 
     if (stat.isDirectory() && !IGNORE_DIRS.includes(file)) {
-      await locateWorlds(filePath, output, depth+1);
+      await locateWorlds(filePath, save, root, depth+1);
     } else if (file === "level.dat") {
-      await generateOverview(filePath, output, depth);
+      await generateOverview(filePath, save, root, depth);
     }
   }
 }
 
-const generateOverview = async (world, save, depth) => {
+const generateOverview = async (world, save, root, depth) => {
   const variant = depth > 0 ? world.match(VARIANT_REGEX)[0] : "default";
   const worldDir = world.replace("level.dat", "");
   const chunkBounds = await getChunkBounds(worldDir);
@@ -86,16 +89,42 @@ const generateOverview = async (world, save, depth) => {
       "--render-sides",
       "--block-randomization",
       "--optimize-geometry",
+      "--texturescale", 4,
+      "--tex-export", "base,alpha",
+      "--chunks", chunkBounds.chunkString,
       "--output", output,
       worldDir
     ]);
 
+    process.stdout.on('data', (data) => {
+      console.log(data.toString());
+    });
+
+    process.stderr.on('data', (data) => {
+      console.error(data.toString());
+    });
+
     process.on('close', (code) => {
       if (code === 0) {
         if (fs.existsSync(texOutput)) {
+          fs.cpSync(texOutput, path.join(root, "textures"), {
+            recursive: true,
+            errorOnExist: false
+          });
           fs.rmSync(texOutput, { recursive: true, force: true });
         }
+
         console.log(`Saved to ${output}`);
+
+        const objFile = path.join(output, "minecraft.obj");
+        if (fs.existsSync(objFile)) {
+          const stats = fs.statSync(objFile);
+          const sizeMB = stats.size / (1024 * 1024);
+          if (sizeMB > 99) {
+            fs.rmSync(output, { recursive: true, force: true });
+            console.log(`Deleting output as file is too large (TODO: add support) (${sizeMB.toFixed(2)} MB)`);
+          }
+        }
         resolve(code);
       } else {
         reject(new Error(`Process exited with code ${code}`));
@@ -112,7 +141,9 @@ const generateOverview = async (world, save, depth) => {
 const getChunkBounds = async (worldDir) => {
   const regionDir = path.join(worldDir, "region");
 
-  if (!fs.existsSync(regionDir)) return null;
+  if (!fs.existsSync(regionDir)) return {
+    chunkString: "-32,32,-32,32"
+  };
 
   const files = fs.readdirSync(regionDir);
   const regionFiles = files.filter(f => f.endsWith(".mca"));
@@ -145,10 +176,6 @@ const getChunkBounds = async (worldDir) => {
   const maxChunkZ = (maxRegionZ * 32) + 31;
 
   return {
-    minChunkX,
-    maxChunkX,
-    minChunkZ,
-    maxChunkZ,
     chunkString: `${minChunkX},${minChunkZ},${maxChunkX},${maxChunkZ}`
   };
 }
