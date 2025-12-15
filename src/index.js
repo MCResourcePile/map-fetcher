@@ -219,7 +219,7 @@ const parseMap = async (target, source, variant = "default", variant_info) => {
 
   var mapLicense = determineMapLicense(target, source);
 
-  mapSource = {
+  var mapSource = {
     maintainer: source.maintainer,
     repository: source.repository,
     path: mapDir,
@@ -330,7 +330,7 @@ const parseMap = async (target, source, variant = "default", variant_info) => {
     var pattern = /\${([\w-_ ]*)}/g;
     tmp = tmp.replace(pattern, (keyExpr, key) => {
       if (constants.hasOwnProperty(key)) {
-        return constants[key];
+        return constants[key].replaceAll('"', '\\"');;
       };
     });
     return JSON.parse(tmp);
