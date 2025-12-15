@@ -330,7 +330,7 @@ const parseMap = async (target, source, variant = "default", variant_info) => {
     var pattern = /\${([\w-_ ]*)}/g;
     tmp = tmp.replace(pattern, (keyExpr, key) => {
       if (constants.hasOwnProperty(key)) {
-        return constants[key].replaceAll('"', '\\"');;
+        return String(constants[key]).replaceAll('"', '\\"');;
       };
     });
     return JSON.parse(tmp);
