@@ -44,7 +44,7 @@ const parseMap = async (target, source, output) => {
   const version = xmlData.map.version ? xmlData.map.version[0] : "1.0.0";
 
   if (fs.existsSync(versionFile)) {
-    const savedVersion = fs.readFileSync(versionFile, "utf8");
+    const savedVersion = fs.readFileSync(versionFile, "utf8").toString().trim();;
     if (version === savedVersion) {
       console.log(`Skipping as saved version matches current version (${savedVersion})`);
       return;
