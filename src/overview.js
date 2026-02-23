@@ -43,8 +43,10 @@ const parseMap = async (target, source, output) => {
   const versionFile = path.join(save, "version");
   const version = xmlData.map.version ? xmlData.map.version[0] : "1.0.0";
 
+  console.log(versionFile)
+
   if (fs.existsSync(versionFile)) {
-    const savedVersion = fs.readFileSync(versionFile, "utf8").toString().trim();;
+    const savedVersion = fs.readFileSync(versionFile, "utf8").toString().trim();
     if (version === savedVersion) {
       console.log(`Skipping as saved version matches current version (${savedVersion})`);
       return;
@@ -75,8 +77,24 @@ const locateWorlds = async (currentPath, save, root, depth) => {
 const generateOverview = async (world, save, root, depth) => {
   const variant = depth > 0 ? world.match(VARIANT_REGEX)[0] : "default";
   const worldDir = world.replace("level.dat", "");
-  const chunkBounds = await getChunkBounds(worldDir);
+  const regionDir = path.join(worldDir, "region");
 
+  var dimension = "overworld";
+  if (!fs.existsSync(regionDir)) {
+    const dirs = fs.readdirSync(worldDir);
+    dirs.forEach((dir) => {
+      switch (dir) {
+        case "DIM1":
+          dimension = "the_end";
+          break;
+        case "DIM-1":
+          dimension = "the_nether";
+          break;
+      }
+    });
+  }
+
+  const chunkBounds = await getChunkBounds(worldDir, dimension);
   const output = path.join(save, variant);
   const texOutput = path.join(output, "tex");
 
@@ -91,6 +109,7 @@ const generateOverview = async (world, save, root, depth) => {
       "--optimize-geometry",
       "--texturescale", 4,
       "--tex-export", "base,alpha",
+      "--dimension", dimension,
       "--chunks", chunkBounds.chunkString,
       "--output", output,
       worldDir
@@ -120,7 +139,7 @@ const generateOverview = async (world, save, root, depth) => {
         if (fs.existsSync(objFile)) {
           const stats = fs.statSync(objFile);
           const sizeMB = stats.size / (1024 * 1024);
-          if (sizeMB > 99) {
+          if (sizeMB > 90) {
             fs.rmSync(output, { recursive: true, force: true });
             console.log(`Deleting output as file is too large (TODO: add support) (${sizeMB.toFixed(2)} MB)`);
           }
@@ -138,8 +157,13 @@ const generateOverview = async (world, save, root, depth) => {
   });
 }
 
-const getChunkBounds = async (worldDir) => {
-  const regionDir = path.join(worldDir, "region");
+const getChunkBounds = async (worldDir, dimension) => {
+  const region = {
+    "overworld": ["region"],
+    "the_end": ["DIM1", "region"],
+    "the_nether": ["DIM-1", "region"]
+  }[dimension];
+  const regionDir = path.join(worldDir, ...region);
 
   if (!fs.existsSync(regionDir)) return {
     chunkString: "-32,32,-32,32"
