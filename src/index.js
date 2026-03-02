@@ -461,6 +461,7 @@ const parseMap = async (target, source, variant = "default", variant_info) => {
       if (["bridge", "bridge-swap"].includes(includeReference)) map["tags"].push("bridge");
       if ("infection" === includeReference) map["tags"].push("infection");
       if ("gs" === includeReference) map["tags"].push("gs");
+      if ("touchdown" === includeReference) map["tags"].push("touchdown");
     });
   };
 
