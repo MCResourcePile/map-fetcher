@@ -133,6 +133,19 @@ const generateOverview = async (world, save, root, depth) => {
           fs.rmSync(texOutput, { recursive: true, force: true });
         }
 
+        const mtlFile = path.join(output, "minecraft.mtl");
+        if (fs.existsSync(mtlFile)) {
+          const content = fs.readFileSync(mtlFile, "utf-8");
+          const updated = content.split("\n").map((line) => {
+            if (line.startsWith("map_d")) {
+              return line + "\nd 0.99";
+            }
+            return line;
+          }).join("\n");
+
+          fs.writeFileSync(mtlFile, updated, "utf-8");
+        }
+
         console.log(`Saved to ${output}`);
 
         const objFile = path.join(output, "minecraft.obj");
