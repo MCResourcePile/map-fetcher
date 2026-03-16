@@ -10,7 +10,7 @@ const VARIANT_REGEX = /[^\\/]+(?=[\\/][^\\/]+$)/;
 const TMP_REGEX = /^.*?\\tmp/;
 const IGNORE_DIRS = [".git", ".github", "region"];
 
-const parseRepo = async (root, source, output) => {
+const parseRepo = async (root, source, output, args) => {
 
   const files = fs.readdirSync(root);
   for (var i = 0; i < files.length; i++) {
@@ -19,14 +19,14 @@ const parseRepo = async (root, source, output) => {
     const stat = fs.lstatSync(filePath);
 
     if (stat.isDirectory() && !IGNORE_DIRS.includes(file)) {
-      await parseRepo(filePath, source, output);
+      await parseRepo(filePath, source, output, args);
     } else if (file === "map.xml") {
-      await parseMap(filePath, source, output);
+      await parseMap(filePath, source, output, args);
     }
   }
 }
 
-const parseMap = async (target, source, output) => {
+const parseMap = async (target, source, output, args) => {
   console.log(`Starting ${target}`);
 
   var xmlData;
@@ -55,11 +55,11 @@ const parseMap = async (target, source, output) => {
     fs.mkdirSync(save, { recursive: true });
   }
 
-  await locateWorlds(folderPath, save, output, 0);
+  await locateWorlds(folderPath, save, output, args, 0);
   fs.writeFileSync(versionFile, version);
 }
 
-const locateWorlds = async (currentPath, save, root, depth) => {
+const locateWorlds = async (currentPath, save, root, args, depth) => {
   const files = fs.readdirSync(currentPath);
   for (var i = 0; i < files.length; i++) {
     const file = files[i];
@@ -67,14 +67,14 @@ const locateWorlds = async (currentPath, save, root, depth) => {
     const stat = fs.lstatSync(filePath);
 
     if (stat.isDirectory() && !IGNORE_DIRS.includes(file)) {
-      await locateWorlds(filePath, save, root, depth+1);
+      await locateWorlds(filePath, save, root, args, depth+1);
     } else if (file === "level.dat") {
-      await generateOverview(filePath, save, root, depth);
+      await generateOverview(filePath, save, root, args, depth);
     }
   }
 }
 
-const generateOverview = async (world, save, root, depth) => {
+const generateOverview = async (world, save, root, args, depth) => {
   const variant = depth > 0 ? world.match(VARIANT_REGEX)[0] : "default";
   const worldDir = world.replace("level.dat", "");
   const regionDir = path.join(worldDir, "region");
@@ -100,20 +100,27 @@ const generateOverview = async (world, save, root, depth) => {
 
   fs.mkdirSync(output, { recursive: true });
 
+  var params = [
+    "-jar",
+    "./tmp/jmc2Obj.jar",
+    "--render-sides",
+    "--block-randomization",
+    "--optimize-geometry",
+    "--texturescale", 4,
+    "--tex-export", "base,alpha",
+    "--dimension", dimension,
+    "--chunks", chunkBounds.chunkString,
+    "--output", output,
+  ];
+
+  if (args.textures) {
+    params.push(`--resource-pack=${args.textures}`);
+  }
+
+  params.push(worldDir);
+
   return new Promise((resolve, reject) => {
-    const process = spawn("java", [
-      "-jar",
-      "./tmp/jmc2Obj.jar",
-      "--render-sides",
-      "--block-randomization",
-      "--optimize-geometry",
-      "--texturescale", 4,
-      "--tex-export", "base,alpha",
-      "--dimension", dimension,
-      "--chunks", chunkBounds.chunkString,
-      "--output", output,
-      worldDir
-    ]);
+    const process = spawn("java", params);
 
     process.stdout.on('data', (data) => {
       console.log(data.toString());
@@ -237,6 +244,9 @@ const main = async () => {
       describe: "Dry run; don't redownload temp map files",
       type: "boolean"
     })
+    .option("textures", {
+      describe: "Path to resource pack containing textures"
+    })
     .demandOption(["source"])
     .help()
     .argv;
@@ -252,7 +262,7 @@ const main = async () => {
   const jmcVersion = process.env.JMC2OBJVERSION;
   const jmcJar = await fetch(`https://github.com/jmc2obj/j-mc-2-obj/releases/download/${jmcVersion}/jMc2Obj-${jmcVersion}.jar`);
   if (!jmcJar.ok) {
-    throw new Error(`Failed to download: ${jmcJar.statusText}`);
+    throw new Error(`Failed to download JMC: ${jmcJar.statusText}`);
   }
   const arrayBuffer = await jmcJar.arrayBuffer();
   const buffer = Buffer.from(arrayBuffer);
@@ -261,6 +271,9 @@ const main = async () => {
   const outputDir = path.resolve(args.output);
   if (!fs.existsSync(outputDir)) fs.mkdirSync(outputDir);
 
+  if (args.textures && !fs.existsSync(path.resolve(args.textures))) {
+    throw new Error(`Texture path does not exist: ${args.textures}`);
+  }
 
   for (var i = 0; i < templateData.sources.length; i++) {
     const source = structuredClone(templateData.sources[i]);
@@ -271,7 +284,7 @@ const main = async () => {
       await git.clone(source.url, repoDir);
     }
 
-    await parseRepo(repoDir, source, outputDir);
+    await parseRepo(repoDir, source, outputDir, args);
   }
 }
 
