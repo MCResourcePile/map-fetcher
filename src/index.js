@@ -62,20 +62,35 @@ const parseMap = async (target, source, variant = "default", variant_info) => {
   console.log(`Parsing map data from ${target} (${variant})`);
 
   const getSupportedVersions = (node) => {
-      var versions = {};
-      var min = node.hasOwnProperty("min-server-version") ? node["min-server-version"] : source?.min_server_version;
-      var max = node.hasOwnProperty("max-server-version") ? node["max-server-version"] : undefined;
+    var versions = {};
+    var min = node.hasOwnProperty("min-server-version") ? node["min-server-version"] : source?.min_server_version;
+    var max = node.hasOwnProperty("max-server-version") ? node["max-server-version"] : undefined;
 
-      if (min) versions["min"] = min;
-      if (max) versions["max"] = max;
+    if (min) versions["min"] = min;
+    if (max) versions["max"] = max;
 
-      if (Object.keys(versions).length === 0)
-        return false;
+    if (Object.keys(versions).length === 0)
+      return false;
 
-      return versions;
+    return versions;
   }
 
-  if (xmlData.map.variant) {
+  const findAllMapVariants = (data, results = []) => {
+    if (typeof data !== 'object' || data === null) return results;
+
+    for (const key in data) {
+      if (key === 'variant') {
+        results.push(...(Array.isArray(data[key]) ? data[key] : [data[key]]));
+      } else {
+        findAllMapVariants(data[key], results);
+      }
+    }
+
+    return results;
+  }
+  const variantDefinitions = findAllMapVariants(xmlData).filter(v => typeof v === 'object' && v !== null);
+
+  if (variantDefinitions) {
     if (variant !== "default") {
       var defaultVariant = {
         "id": "default",
@@ -90,26 +105,26 @@ const parseMap = async (target, source, variant = "default", variant_info) => {
       variants.push(defaultVariant);
     };
 
-    for (var i in xmlData.map.variant) {
-      if (xmlData.map.variant[i].$.id === "default") {
+    for (var i in variantDefinitions) {
+      if (variantDefinitions[i].$.id === "default") {
         if (variant === "default")
-          variant_info["world"] = xmlData.map.variant[i].$.hasOwnProperty("world") ? xmlData.map.variant[i].$.world : false;
+          variant_info["world"] = variantDefinitions[i].$.hasOwnProperty("world") ? variantDefinitions[i].$.world : false;
         continue;
       }
 
-      if (xmlData.map.variant[i].$.id !== variant) {
+      if (variantDefinitions[i].$.id !== variant) {
         var newVariant = {
-          "id": xmlData.map.variant[i].$.id,
-          "name": xmlData.map.variant[i].$.hasOwnProperty("override") && xmlData.map.variant[i].$.override === "true" ? xmlData.map.variant[i]._ : `${xmlData.map.name[0]}: ${xmlData.map.variant[i]._}`,
-          "override_name": xmlData.map.variant[i].$.hasOwnProperty("override") ? xmlData.map.variant[i].$.override === "true" : false,
-          "world": xmlData.map.variant[i].$.hasOwnProperty("world") ? xmlData.map.variant[i].$.world : false
+          "id": variantDefinitions[i].$.id,
+          "name": variantDefinitions[i].$.hasOwnProperty("override") && variantDefinitions[i].$.override === "true" ? variantDefinitions[i]._ : `${xmlData.map.name[0]}: ${variantDefinitions[i]._}`,
+          "override_name": variantDefinitions[i].$.hasOwnProperty("override") ? variantDefinitions[i].$.override === "true" : false,
+          "world": variantDefinitions[i].$.hasOwnProperty("world") ? variantDefinitions[i].$.world : false
         };
         newVariant["internal_id"] = toSlug([source.maintainer, source.repository, newVariant["name"]].join("_"));
         if (Object.keys(getSupportedVersions(xmlData.map.$)).length > 0) {
           newVariant["server_version"] = getSupportedVersions(xmlData.map.$);
         };
-        if (Object.keys(getSupportedVersions(xmlData.map.variant[i].$)).length > 0) {
-          newVariant["server_version"] = getSupportedVersions(xmlData.map.variant[i].$);
+        if (Object.keys(getSupportedVersions(variantDefinitions[i].$)).length > 0) {
+          newVariant["server_version"] = getSupportedVersions(variantDefinitions[i].$);
         };
         variants.push(newVariant);
       };
