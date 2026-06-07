@@ -75,19 +75,48 @@ const parseMap = async (target, source, variant = "default", variant_info) => {
     return versions;
   }
 
-  const findAllMapVariants = (data, results = []) => {
+  const findAllMapVariants = (data, results = [], inheritedVersionAttrs = {}) => {
     if (typeof data !== 'object' || data === null) return results;
 
     for (const key in data) {
-      if (key === 'variant') {
-        results.push(...(Array.isArray(data[key]) ? data[key] : [data[key]]));
+      const versionAttrsFromBlock = (items) => {
+        const out = {};
+        const src = Array.isArray(items) ? items[0] : items;
+        if (src && src.$) {
+          if (src.$['min-server-version']) out['min-server-version'] = src.$['min-server-version'];
+          if (src.$['max-server-version']) out['max-server-version'] = src.$['max-server-version'];
+        }
+        return out;
+      };
+
+      if (key === 'if' || key === 'unless') {
+        const blocks = Array.isArray(data[key]) ? data[key] : [data[key]];
+        for (const block of blocks) {
+          const blockVersionAttrs = { ...inheritedVersionAttrs };
+          if (key === 'if') {
+            if (block.$['min-server-version']) blockVersionAttrs['min-server-version'] = block.$['min-server-version'];
+            if (block.$['max-server-version']) blockVersionAttrs['max-server-version'] = block.$['max-server-version'];
+          } else if (key === 'unless') {
+            if (block.$['min-server-version']) blockVersionAttrs['max-server-version'] = block.$['min-server-version'];
+            if (block.$['max-server-version']) blockVersionAttrs['min-server-version'] = block.$['max-server-version'];
+          }
+          findAllMapVariants(block, results, blockVersionAttrs);
+        }
+      } else if (key === 'variant') {
+        const variantList = Array.isArray(data[key]) ? data[key] : [data[key]];
+        for (const v of variantList) {
+          if (typeof v === 'object' && v !== null && Object.keys(inheritedVersionAttrs).length > 0) {
+            v.$ = { ...inheritedVersionAttrs, ...(v.$ || {}) };
+          }
+          results.push(v);
+        }
       } else {
-        findAllMapVariants(data[key], results);
+        findAllMapVariants(data[key], results, inheritedVersionAttrs);
       }
     }
 
     return results;
-  }
+  };
   const variantDefinitions = findAllMapVariants(xmlData).filter(v => typeof v === 'object' && v !== null);
 
   if (variantDefinitions) {
